@@ -35,7 +35,6 @@ let levelHistory = [];
 let audioContext;
 let analyser;
 let microphone;
-let javascriptNode;
 
 // --- AUTHENTICATION ---
 const pinInput = document.getElementById('pin-input');
@@ -92,27 +91,33 @@ socket.on('disconnect', () => {
 async function startListening() {
     if (isListening) return;
     
+    // Safari requires AudioContext to be created or resumed upon user gesture
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
+    
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
         microphone = audioContext.createMediaStreamSource(stream);
-        javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
 
         analyser.smoothingTimeConstant = 0.8;
         analyser.fftSize = 1024;
 
         microphone.connect(analyser);
-        analyser.connect(javascriptNode);
-        javascriptNode.connect(audioContext.destination);
 
         isListening = true;
         micStatus.innerText = '● LISTENING';
         micStatus.classList.add('active');
 
-        // Loop
-        javascriptNode.onaudioprocess = function() {
+        // Loop using requestAnimationFrame (works better on mobile than ScriptProcessorNode)
+        function processAudio() {
+            if (!isListening) return;
+            
             const array = new Uint8Array(analyser.frequencyBinCount);
             analyser.getByteFrequencyData(array);
             
@@ -125,7 +130,7 @@ async function startListening() {
             // Calculate basic volume 0-100
             let volume = values / length;
             // Boost volume visually
-            let mappedLevel = Math.min(100, Math.round((volume / 128) * 100 * 1.5));
+            let mappedLevel = Math.min(100, Math.round((volume / 128) * 100 * 2.0));
             
             if (mappedLevel > peakLevel) peakLevel = mappedLevel;
             
@@ -136,7 +141,11 @@ async function startListening() {
 
             updateUI(mappedLevel, peakLevel, avg);
             sendUpdate(mappedLevel, peakLevel, avg);
-        };
+            
+            window.animationFrameId = requestAnimationFrame(processAudio);
+        }
+        
+        processAudio();
         
     } catch (err) {
         console.error(err);
@@ -147,7 +156,7 @@ async function startListening() {
 function stopListening() {
     if (!isListening) return;
     
-    if (javascriptNode) javascriptNode.disconnect();
+    if (window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
     if (analyser) analyser.disconnect();
     if (microphone) microphone.disconnect();
     
