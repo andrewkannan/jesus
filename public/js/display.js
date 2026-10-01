@@ -3,6 +3,7 @@ const socket = io();
 const statusEl = document.getElementById('connection-status');
 const textEl = document.getElementById('jesus-text');
 const scorePeakEl = document.getElementById('score-peak');
+const audioOverlay = document.getElementById('audio-overlay');
 
 const TIER_THRESHOLDS = [
     { db: 120, tier: 4 }, // Heavenly Rumble
@@ -13,6 +14,16 @@ const TIER_THRESHOLDS = [
 
 let currentTier = 0;
 let achievementTimer = null;
+let displayAudioCtx = null;
+let audioEnabled = false;
+
+// Enable Audio on click
+audioOverlay.addEventListener('click', () => {
+    displayAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (displayAudioCtx.state === 'suspended') displayAudioCtx.resume();
+    audioEnabled = true;
+    audioOverlay.style.display = 'none';
+});
 
 // State
 let targetLevel = 0;
@@ -56,7 +67,9 @@ socket.on('state_update', (state) => {
         
         // Only upgrade the tier, don't downgrade it immediately if locked
         if (newTier > currentTier) {
+            playAchievementSound(newTier);
             currentTier = newTier;
+            
             if (achievementTimer) clearTimeout(achievementTimer);
             // Lock the achievement glow for 10 seconds
             achievementTimer = setTimeout(() => {
@@ -68,6 +81,84 @@ socket.on('state_update', (state) => {
     effectMode = state.effect;
     lastUpdate = Date.now();
 });
+
+// Sound Synthesizer
+function playAchievementSound(tier) {
+    if (!audioEnabled || !displayAudioCtx) return;
+    
+    if (displayAudioCtx.state === 'suspended') displayAudioCtx.resume();
+
+    const t = displayAudioCtx.currentTime;
+
+    // 1. Massive Sub Boom (All Tiers)
+    const subOsc = displayAudioCtx.createOscillator();
+    const subGain = displayAudioCtx.createGain();
+    
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(80 + (tier * 10), t);
+    subOsc.frequency.exponentialRampToValueAtTime(20, t + 1.5); // Bass drop sweep
+    
+    subGain.gain.setValueAtTime(0, t);
+    subGain.gain.linearRampToValueAtTime(1.0 + (tier * 0.2), t + 0.05); // Hit hard
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 2 + (tier * 0.5)); // Fade out
+    
+    subOsc.connect(subGain);
+    subGain.connect(displayAudioCtx.destination);
+    
+    subOsc.start(t);
+    subOsc.stop(t + 4);
+
+    // 2. Cinematic Rumble/Crunch (Tier 2 and up)
+    if (tier >= 2) {
+        const saw = displayAudioCtx.createOscillator();
+        const sawGain = displayAudioCtx.createGain();
+        const filter = displayAudioCtx.createBiquadFilter();
+        
+        saw.type = 'sawtooth';
+        saw.frequency.setValueAtTime(40 + (tier * 10), t);
+        saw.frequency.exponentialRampToValueAtTime(10, t + 2);
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(300 + (tier * 100), t);
+        filter.frequency.exponentialRampToValueAtTime(40, t + 1.5);
+        
+        sawGain.gain.setValueAtTime(0, t);
+        sawGain.gain.linearRampToValueAtTime(0.5, t + 0.05);
+        sawGain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+        
+        saw.connect(filter);
+        filter.connect(sawGain);
+        sawGain.connect(displayAudioCtx.destination);
+        
+        saw.start(t);
+        saw.stop(t + 2);
+    }
+    
+    // 3. Heavenly Chord (Tier 3 and 4)
+    if (tier >= 3) {
+        // C Major chord frequencies
+        const chord = [261.63, 329.63, 392.00, 523.25]; 
+        
+        chord.forEach(freq => {
+            const chordOsc = displayAudioCtx.createOscillator();
+            const chordGain = displayAudioCtx.createGain();
+            
+            chordOsc.type = 'triangle'; 
+            // Tier 4 plays it an octave higher for extreme intensity
+            chordOsc.frequency.value = freq * (tier === 4 ? 2 : 1);
+            
+            chordGain.gain.setValueAtTime(0, t);
+            chordGain.gain.linearRampToValueAtTime(0.15, t + 0.1);
+            chordGain.gain.exponentialRampToValueAtTime(0.001, t + 3 + (tier * 0.5));
+            
+            chordOsc.connect(chordGain);
+            chordGain.connect(displayAudioCtx.destination);
+            
+            chordOsc.start(t);
+            chordOsc.stop(t + 5);
+        });
+    }
+}
 
 // Render loop
 function render() {

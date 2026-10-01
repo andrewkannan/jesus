@@ -12,11 +12,13 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+    <div id="audio-overlay">CLICK ANYWHERE TO ENABLE SOUND</div>
+
     <div id="debug-info">REMOTE<br><span id="connection-status">● DISCONNECTED</span></div>
     
     <div id="scoreboard">
         <div class="score-label">MAX ENERGY</div>
-        <div class="score-value" id="score-peak">0%</div>
+        <div class="score-value" id="score-peak">0 dB</div>
     </div>
     
     <div id="main-container">

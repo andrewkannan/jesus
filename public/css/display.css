@@ -77,3 +77,18 @@ body, html {
     text-shadow: 0 0 20px rgba(255,255,255,0.5);
     letter-spacing: 2px;
 }
+
+#audio-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.9);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    font-size: 2vw;
+    font-family: 'Montserrat', sans-serif;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+}
