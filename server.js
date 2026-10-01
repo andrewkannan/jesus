@@ -11,6 +11,7 @@ const io = new Server(server);
 // Global State
 let globalState = {
   level: 0,
+  db: 0,
   peak: 0,
   average: 0,
   status: 'idle',
@@ -57,6 +58,7 @@ io.on('connection', (socket) => {
     globalState = {
       ...globalState,
       level: typeof data.level === 'number' ? data.level : globalState.level,
+      db: typeof data.db === 'number' ? data.db : globalState.db,
       peak: typeof data.peak === 'number' ? data.peak : globalState.peak,
       average: typeof data.average === 'number' ? data.average : globalState.average,
       status: data.status || globalState.status,
@@ -74,6 +76,7 @@ io.on('connection', (socket) => {
      
      if (data.command === 'reset') {
          globalState.level = 0;
+         globalState.db = 0;
          globalState.peak = 0;
          globalState.average = 0;
          globalState.status = 'idle';

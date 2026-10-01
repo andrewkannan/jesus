@@ -30,6 +30,7 @@ let overrideLevel = 73; // Animation visual level
 let currentEffect = 'cinematic';
 let peakDb = 0;
 let dbHistory = [];
+let lastDb = 0;
 
 // Audio Context
 let audioContext;
@@ -127,6 +128,7 @@ async function startListening() {
             
             // Decibel approximation mapping (feels limitless up to ~130dB)
             let currentDb = volume > 2 ? Math.round(40 + (volume * 0.6)) : 0;
+            lastDb = currentDb;
             
             if (currentDb > peakDb) peakDb = currentDb;
             
@@ -136,7 +138,7 @@ async function startListening() {
             const avgDb = Math.round(dbHistory.reduce((a, b) => a + b, 0) / dbHistory.length);
 
             updateUI(currentDb, peakDb, avgDb, visualLevel);
-            sendUpdate(visualLevel, peakDb, avgDb);
+            sendUpdate(visualLevel, peakDb, avgDb, currentDb);
             
             window.animationFrameId = requestAnimationFrame(processAudio);
         }
@@ -161,18 +163,19 @@ function stopListening() {
     micStatus.classList.remove('active');
     
     updateUI(0, peakDb, 0, 0);
-    sendUpdate(0, peakDb, 0);
+    sendUpdate(0, peakDb, 0, 0);
 }
 
 // --- DATA SYNC ---
-function sendUpdate(visualLevel, peak, avg) {
+function sendUpdate(visualLevel, peak, avg, currentDb) {
     if (!pin) return; 
     
     socket.emit('remote_update', {
         pin: pin,
         level: manualOverride ? overrideLevel : visualLevel,
-        peak: peak, // sending peakDb as peak
-        average: avg, // sending avgDb as average
+        db: currentDb,
+        peak: peak,
+        average: avg, 
         status: isListening ? 'listening' : 'idle',
         effect: currentEffect,
         manualOverride: manualOverride
@@ -215,20 +218,20 @@ btnOverrideMinus.addEventListener('click', () => {
     if (!manualOverride) manualOverride = true;
     overrideLevel = Math.max(0, overrideLevel - 5);
     valOverride.innerText = `${overrideLevel}%`;
-    if (!isListening) sendUpdate(overrideLevel, peakDb, 0);
+    if (!isListening) sendUpdate(overrideLevel, peakDb, 0, 0);
 });
 
 btnOverridePlus.addEventListener('click', () => {
     if (!manualOverride) manualOverride = true;
     overrideLevel = Math.min(100, overrideLevel + 5);
     valOverride.innerText = `${overrideLevel}%`;
-    if (!isListening) sendUpdate(overrideLevel, peakDb, 0);
+    if (!isListening) sendUpdate(overrideLevel, peakDb, 0, 0);
 });
 
 valOverride.addEventListener('click', () => {
     manualOverride = false;
     valOverride.innerText = 'OFF';
-    if (!isListening) sendUpdate(0, peakDb, 0);
+    if (!isListening) sendUpdate(0, peakDb, 0, lastDb);
 });
 
 effectBtns.forEach(btn => {
@@ -236,6 +239,6 @@ effectBtns.forEach(btn => {
         effectBtns.forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         currentEffect = e.target.getAttribute('data-effect');
-        if (!isListening) sendUpdate(0, peakDb, 0);
+        if (!isListening) sendUpdate(0, peakDb, 0, lastDb);
     });
 });

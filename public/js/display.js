@@ -4,6 +4,10 @@ const statusEl = document.getElementById('connection-status');
 const textEl = document.getElementById('jesus-text');
 const scorePeakEl = document.getElementById('score-peak');
 
+const TARGET_DB = 115;
+let isAchieved = false;
+let achievementTimer = null;
+
 // State
 let targetLevel = 0;
 let currentLevel = 0;
@@ -24,16 +28,24 @@ socket.on('disconnect', () => {
 
 // Receive state updates
 socket.on('state_update', (state) => {
-    // If the manual override is active, use it instead of the live audio level
     if (state.manualOverride) {
-        targetLevel = state.level; // Could be a manual set level
+        targetLevel = state.level;
     } else {
         targetLevel = state.level;
     }
     
-    // Update Scoreboard Peak Energy
     if (scorePeakEl) {
         scorePeakEl.textContent = `${state.peak || 0} dB`;
+    }
+    
+    // Check for Achievement Glow
+    if (state.db >= TARGET_DB && !isAchieved) {
+        isAchieved = true;
+        if (achievementTimer) clearTimeout(achievementTimer);
+        // Lock the achievement glow for 4 seconds
+        achievementTimer = setTimeout(() => {
+            isAchieved = false;
+        }, 4000);
     }
     
     effectMode = state.effect;
@@ -42,50 +54,62 @@ socket.on('state_update', (state) => {
 
 // Render loop
 function render() {
-    // Drop level if disconnected or no updates for 2 seconds
     if (Date.now() - lastUpdate > 2000) {
         targetLevel = 0;
     }
 
-    // Interpolation (lerp) for smooth animation
-    // currentLevel moves 10% closer to targetLevel each frame
     currentLevel += (targetLevel - currentLevel) * 0.1;
-
-    // Map currentLevel (0-100) to visual properties based on effect mode
-    applyEffect(currentLevel, effectMode);
+    
+    // Force maximum visual level if achieved
+    let visualLevel = isAchieved ? 100 : currentLevel;
+    
+    applyEffect(visualLevel, effectMode, isAchieved);
 
     requestAnimationFrame(render);
 }
 
-function applyEffect(level, effect) {
-    // Base properties
+function applyEffect(level, effect, achieved) {
     let scale = 1;
     let textShadow = 'none';
     let opacity = 1;
 
-    // Normalize level 0-1
     const nLevel = Math.max(0, Math.min(100, level)) / 100;
 
-    if (effect === 'minimal') {
-        // Minimal: just opacity and slight scaling
+    if (achieved) {
+        // Golden Holy Fire Effect
+        scale = 1.3;
+        opacity = 1;
+        textEl.style.color = '#fff';
+        
+        // Rumble effect
+        const offsetX = (Math.random() - 0.5) * 6;
+        const offsetY = (Math.random() - 0.5) * 6;
+        
+        textShadow = `
+            0 -10px 30px #fff, 
+            0 -20px 50px #ffe600, 
+            0 -40px 80px #ff8c00,
+            0 0 100px rgba(255, 140, 0, 0.8)
+        `;
+        textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    } 
+    else if (effect === 'minimal') {
         opacity = 0.5 + (nLevel * 0.5);
         scale = 1 + (nLevel * 0.05);
+        textEl.style.color = '#fff';
+        textEl.style.transform = `scale(${scale})`;
     } 
     else if (effect === 'energy') {
-        // Energy: active scaling, bright colors, shaking at high levels
         scale = 1 + (nLevel * 0.2);
         
-        // RGB shift based on energy
         const r = Math.floor(255);
         const g = Math.floor(255 - (nLevel * 100));
         const b = Math.floor(255 - (nLevel * 100));
-        
         textEl.style.color = `rgb(${r}, ${g}, ${b})`;
         
         const glow = nLevel * 50;
         textShadow = `0 0 ${glow}px rgba(255, 100, 100, ${nLevel})`;
         
-        // Shake at very high levels
         if (nLevel > 0.8) {
             const offsetX = (Math.random() - 0.5) * (nLevel * 10);
             const offsetY = (Math.random() - 0.5) * (nLevel * 10);
@@ -93,10 +117,9 @@ function applyEffect(level, effect) {
         } else {
             textEl.style.transform = `translate(0px, 0px) scale(${scale})`;
         }
-        
     } 
     else {
-        // Cinematic (Default): Smooth subtle breath, elegant glow
+        // Cinematic
         scale = 1 + (nLevel * 0.15);
         opacity = 0.6 + (nLevel * 0.4);
         
@@ -106,13 +129,8 @@ function applyEffect(level, effect) {
         textEl.style.transform = `scale(${scale})`;
     }
 
-    if (effect !== 'energy') {
-         textEl.style.transform = `scale(${scale})`;
-    }
-    
     textEl.style.opacity = opacity;
     textEl.style.textShadow = textShadow;
 }
 
-// Start loop
 requestAnimationFrame(render);
