@@ -33,8 +33,8 @@ let currentTier = 0;
 let achievementTimer = null;
 
 const TIER_THRESHOLDS = [
-    { db: 120, tier: 4, name: "TIER 4: HEAVENLY RUMBLE", color: "#ff00ff" }, 
-    { db: 115, tier: 3, name: "TIER 3: BLINDING GLORY", color: "#ffffff" }, 
+    { db: 120, tier: 4, name: "TIER 4: OMEGA CRIMSON", color: "#ff0033" }, 
+    { db: 115, tier: 3, name: "TIER 3: NEON AMETHYST", color: "#cc00ff" }, 
     { db: 110, tier: 2, name: "TIER 2: HOLY FIRE", color: "#ff8c00" }, 
     { db: 105, tier: 1, name: "TIER 1: ELECTRIC BLUE", color: "#00aaff" }  
 ];
