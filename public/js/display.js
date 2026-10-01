@@ -42,10 +42,10 @@ socket.on('state_update', (state) => {
     if (state.db >= TARGET_DB && !isAchieved) {
         isAchieved = true;
         if (achievementTimer) clearTimeout(achievementTimer);
-        // Lock the achievement glow for 4 seconds
+        // Lock the achievement glow for 10 seconds
         achievementTimer = setTimeout(() => {
             isAchieved = false;
-        }, 4000);
+        }, 10000);
     }
     
     effectMode = state.effect;
