@@ -2,6 +2,7 @@ const socket = io();
 
 const statusEl = document.getElementById('connection-status');
 const textEl = document.getElementById('jesus-text');
+const scorePeakEl = document.getElementById('score-peak');
 
 // State
 let targetLevel = 0;
@@ -28,6 +29,11 @@ socket.on('state_update', (state) => {
         targetLevel = state.level; // Could be a manual set level
     } else {
         targetLevel = state.level;
+    }
+    
+    // Update Scoreboard Peak Energy
+    if (scorePeakEl) {
+        scorePeakEl.textContent = `${state.peak || 0}%`;
     }
     
     effectMode = state.effect;
