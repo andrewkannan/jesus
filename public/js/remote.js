@@ -21,14 +21,12 @@ const btnReset = document.getElementById('btn-reset');
 const btnOverrideMinus = document.getElementById('btn-override-minus');
 const btnOverridePlus = document.getElementById('btn-override-plus');
 const valOverride = document.getElementById('val-override');
-const effectBtns = document.querySelectorAll('.btn-effect');
 
 // State
 let pin = '';
 let isListening = false;
 let manualOverride = false;
-let overrideLevel = 40; 
-let currentEffect = 'cinematic';
+let overrideLevel = 40;
 let peakDb = 0;
 let dbHistory = [];
 let lastDb = 0;
@@ -221,7 +219,6 @@ function sendUpdate(visualLevel, peak, avg, currentDb) {
         peak: peak,
         average: avg, 
         status: isListening ? 'listening' : 'idle',
-        effect: currentEffect,
         manualOverride: manualOverride
     });
 }
@@ -296,13 +293,4 @@ valOverride.addEventListener('click', () => {
         updateUI(0, peakDb, 0, 0);
         sendUpdate(0, peakDb, 0, 0);
     }
-});
-
-effectBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        effectBtns.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        currentEffect = e.target.getAttribute('data-effect');
-        if (!isListening) sendUpdate(0, peakDb, 0, lastDb);
-    });
 });

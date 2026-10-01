@@ -61,11 +61,11 @@ body, html {
 hr {
     border: none;
     border-top: 1px solid #333;
-    margin: 20px 0;
+    margin: 15px 0;
 }
 .header {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 .header h2 {
     margin: 0;
@@ -80,6 +80,7 @@ hr {
 .status {
     font-size: 12px;
     color: #ff453a;
+    font-weight: bold;
 }
 .status.active {
     color: #32d74b;
@@ -95,9 +96,9 @@ h3 {
     margin: 0 0 10px;
 }
 .big-value {
-    font-size: 48px;
+    font-size: 52px;
     font-weight: bold;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 .progress-bar {
     width: 100%;
@@ -129,8 +130,8 @@ h3 {
 }
 
 .tier-box {
-    margin: 15px auto;
-    padding: 10px;
+    margin: 5px auto 10px;
+    padding: 8px;
     border-radius: 8px;
     background: #1c1c1e;
     color: #888;
@@ -170,7 +171,7 @@ h3 {
     background: #1c1c1e;
     color: white;
     border: none;
-    padding: 15px 0;
+    padding: 12px 0;
     border-radius: 8px;
     font-size: 14px;
     font-weight: bold;
@@ -205,24 +206,4 @@ h3 {
     font-size: 24px;
     font-weight: bold;
     min-width: 80px;
-}
-
-.effect-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.btn-effect {
-    background: transparent;
-    color: #888;
-    border: 1px solid #333;
-    padding: 15px 0;
-    border-radius: 8px;
-    font-size: 14px;
-    letter-spacing: 1px;
-}
-.btn-effect.active {
-    background: #fff;
-    color: #000;
-    border-color: #fff;
 }
