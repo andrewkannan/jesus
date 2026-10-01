@@ -33,7 +33,7 @@ socket.on('state_update', (state) => {
     
     // Update Scoreboard Peak Energy
     if (scorePeakEl) {
-        scorePeakEl.textContent = `${state.peak || 0}%`;
+        scorePeakEl.textContent = `${state.peak || 0} dB`;
     }
     
     effectMode = state.effect;
