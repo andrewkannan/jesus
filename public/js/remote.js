@@ -27,7 +27,7 @@ const effectBtns = document.querySelectorAll('.btn-effect');
 let pin = '';
 let isListening = false;
 let manualOverride = false;
-let overrideLevel = 73; 
+let overrideLevel = 40; 
 let currentEffect = 'cinematic';
 let peakDb = 0;
 let dbHistory = [];
@@ -42,7 +42,6 @@ const TIER_THRESHOLDS = [
     { db: 110, tier: 2, name: "TIER 2: HOLY FIRE", color: "#ff8c00" }, 
     { db: 105, tier: 1, name: "TIER 1: ELECTRIC BLUE", color: "#00aaff" }  
 ];
-
 
 // Audio Context
 let audioContext;
@@ -95,6 +94,47 @@ socket.on('disconnect', () => {
     remoteStatus.classList.remove('active');
 });
 
+// --- CENTRAL DATA PROCESSOR ---
+function processSimulatedDb(currentDb) {
+    lastDb = currentDb;
+    
+    if (currentDb > peakDb) peakDb = currentDb;
+    
+    dbHistory.push(currentDb);
+    if (dbHistory.length > 50) dbHistory.shift();
+    
+    const avgDb = Math.round(dbHistory.reduce((a, b) => a + b, 0) / dbHistory.length);
+
+    // Determine Tier
+    let newTier = 0;
+    for (const t of TIER_THRESHOLDS) {
+        if (currentDb >= t.db) {
+            newTier = t.tier;
+            break;
+        }
+    }
+    
+    if (newTier > currentTier) {
+        currentTier = newTier;
+        if (achievementTimer) clearTimeout(achievementTimer);
+        achievementTimer = setTimeout(() => {
+            currentTier = 0;
+            updateTierUI();
+        }, 10000);
+    }
+
+    // Map 40-130 dB to 0-100% for the progress bar and main display animation
+    let progressPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
+    
+    // If locked into a tier, send max animation
+    if (currentTier > 0) {
+        progressPercent = 100;
+    }
+
+    updateUI(currentDb, peakDb, avgDb, progressPercent);
+    sendUpdate(progressPercent, peakDb, avgDb, currentDb);
+}
+
 // --- AUDIO PROCESSING ---
 async function startListening() {
     if (isListening) return;
@@ -135,48 +175,14 @@ async function startListening() {
             
             let volume = values / length;
             
-            // Visual Animation Level (0-100 clamped) - just for manual override logic backward compatibility
-            let visualLevel = Math.min(100, Math.round((volume / 128) * 100 * 2.0));
-            
             // Decibel approximation mapping (feels limitless up to ~130dB)
             let currentDb = volume > 2 ? Math.round(40 + (volume * 0.6)) : 0;
-            lastDb = currentDb;
             
-            if (currentDb > peakDb) peakDb = currentDb;
-            
-            dbHistory.push(currentDb);
-            if (dbHistory.length > 50) dbHistory.shift();
-            
-            const avgDb = Math.round(dbHistory.reduce((a, b) => a + b, 0) / dbHistory.length);
-
-            // Determine Tier
-            let newTier = 0;
-            for (const t of TIER_THRESHOLDS) {
-                if (currentDb >= t.db) {
-                    newTier = t.tier;
-                    break;
-                }
-            }
-            
-            if (newTier > currentTier) {
-                currentTier = newTier;
-                if (achievementTimer) clearTimeout(achievementTimer);
-                achievementTimer = setTimeout(() => {
-                    currentTier = 0;
-                    updateTierUI();
-                }, 10000);
+            if (manualOverride) {
+                currentDb = overrideLevel;
             }
 
-            // Map 40-130 dB to 0-100% for the progress bar and main display animation
-            let progressPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
-            
-            // If locked into a tier, send max animation
-            if (currentTier > 0) {
-                progressPercent = 100;
-            }
-
-            updateUI(currentDb, peakDb, avgDb, progressPercent);
-            sendUpdate(progressPercent, peakDb, avgDb, currentDb);
+            processSimulatedDb(currentDb);
             
             window.animationFrameId = requestAnimationFrame(processAudio);
         }
@@ -210,7 +216,7 @@ function sendUpdate(visualLevel, peak, avg, currentDb) {
     
     socket.emit('remote_update', {
         pin: pin,
-        level: manualOverride ? overrideLevel : visualLevel,
+        level: visualLevel, 
         db: currentDb,
         peak: peak,
         average: avg, 
@@ -249,14 +255,8 @@ function updateTierUI() {
 function updateUI(currentDb, peak, avg, visualLevel) {
     updateTierUI();
     
-    if (manualOverride) {
-        valLevel.innerText = `${overrideLevel}%`;
-        barLevel.style.width = `${overrideLevel}%`;
-    } else {
-        valLevel.innerText = `${currentDb} dB`;
-        barLevel.style.width = `${visualLevel}%`;
-    }
-    
+    valLevel.innerText = `${currentDb} dB`;
+    barLevel.style.width = `${visualLevel}%`;
     valPeak.innerText = `${peak} dB`;
     valAvg.innerText = `${avg} dB`;
 }
@@ -277,22 +277,25 @@ btnReset.addEventListener('click', () => {
 
 btnOverrideMinus.addEventListener('click', () => {
     if (!manualOverride) manualOverride = true;
-    overrideLevel = Math.max(0, overrideLevel - 5);
-    valOverride.innerText = `${overrideLevel}%`;
-    if (!isListening) sendUpdate(overrideLevel, peakDb, 0, 0);
+    overrideLevel = Math.max(40, overrideLevel - 10);
+    valOverride.innerText = `${overrideLevel} dB`;
+    if (!isListening) processSimulatedDb(overrideLevel);
 });
 
 btnOverridePlus.addEventListener('click', () => {
     if (!manualOverride) manualOverride = true;
-    overrideLevel = Math.min(100, overrideLevel + 5);
-    valOverride.innerText = `${overrideLevel}%`;
-    if (!isListening) sendUpdate(overrideLevel, peakDb, 0, 0);
+    overrideLevel = Math.min(130, overrideLevel + 10);
+    valOverride.innerText = `${overrideLevel} dB`;
+    if (!isListening) processSimulatedDb(overrideLevel);
 });
 
 valOverride.addEventListener('click', () => {
     manualOverride = false;
     valOverride.innerText = 'OFF';
-    if (!isListening) sendUpdate(0, peakDb, 0, lastDb);
+    if (!isListening) {
+        updateUI(0, peakDb, 0, 0);
+        sendUpdate(0, peakDb, 0, 0);
+    }
 });
 
 effectBtns.forEach(btn => {
