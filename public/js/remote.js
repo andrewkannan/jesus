@@ -167,8 +167,16 @@ async function startListening() {
                 }, 10000);
             }
 
-            updateUI(currentDb, peakDb, avgDb, visualLevel);
-            sendUpdate(visualLevel, peakDb, avgDb, currentDb);
+            // Map 40-130 dB to 0-100% for the progress bar and main display animation
+            let progressPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
+            
+            // If locked into a tier, send max animation
+            if (currentTier > 0) {
+                progressPercent = 100;
+            }
+
+            updateUI(currentDb, peakDb, avgDb, progressPercent);
+            sendUpdate(progressPercent, peakDb, avgDb, currentDb);
             
             window.animationFrameId = requestAnimationFrame(processAudio);
         }
@@ -246,15 +254,7 @@ function updateUI(currentDb, peak, avg, visualLevel) {
         barLevel.style.width = `${overrideLevel}%`;
     } else {
         valLevel.innerText = `${currentDb} dB`;
-        // Map 40-130 dB to 0-100% for the progress bar
-        let progressPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
-        
-        // If locked into a tier, show max bar just like display
-        if (currentTier > 0) {
-            progressPercent = 100;
-        }
-        
-        barLevel.style.width = `${progressPercent}%`;
+        barLevel.style.width = `${visualLevel}%`;
     }
     
     valPeak.innerText = `${peak} dB`;

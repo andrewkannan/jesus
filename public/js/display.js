@@ -266,14 +266,29 @@ function applyEffect(level, effect, tier) {
         }
     } 
     else {
-        // Cinematic
-        scale = 1 + (nLevel * 0.15);
+        // Cinematic (Default) - builds up intensely towards Tier 1 (105 dB)
+        // nLevel is based on progressPercent (40dB = 0%, 105dB = 72%)
+        scale = 1 + (nLevel * 0.15); // Scales up to 1.15
         opacity = 0.6 + (nLevel * 0.4);
         
+        // Tremble effect as they get closer to Tier 1
+        let offsetX = 0;
+        let offsetY = 0;
+        if (nLevel > 0.5) { // Starts trembling around 85 dB
+            const rumble = (nLevel - 0.5) * 4;
+            offsetX = (Math.random() - 0.5) * rumble;
+            offsetY = (Math.random() - 0.5) * rumble;
+        }
+
         const baseGlow = 10 + (nLevel * 80);
-        textShadow = `0 0 ${baseGlow}px rgba(255, 255, 255, ${nLevel * 0.8})`;
+        // Gradually mix in some cyan/blue to build anticipation for Tier 1
+        const r = Math.floor(255 - (nLevel * 100));
+        const g = Math.floor(255 - (nLevel * 20));
+        const b = 255;
+
+        textShadow = `0 0 ${baseGlow}px rgba(${r}, ${g}, ${b}, ${nLevel * 0.9})`;
         textEl.style.color = '#fff';
-        textEl.style.transform = `scale(${scale})`;
+        textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     }
 
     textEl.style.opacity = opacity;
