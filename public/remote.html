@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>JESUS Remote</title>
+    <link rel="stylesheet" href="/css/remote.css">
+    <!-- Web App Manifest for saving to homescreen -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="auth-screen" class="screen active">
+        <h1>JESUS REMOTE</h1>
+        <p>Enter PIN</p>
+        <div class="pin-container">
+            <input type="password" id="pin-input" placeholder="PIN" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <button id="btn-submit-pin" class="btn btn-primary" style="width: 100%; max-width: 300px; margin-top: 20px;">ENTER</button>
+        <p id="auth-error" class="error"></p>
+    </div>
+
+    <!-- CONTROL SCREEN -->
+    <div id="control-screen" class="screen">
+        <div class="header">
+            <h2>JESUS</h2>
+            <p>REMOTE CONTROL</p>
+            <div class="status" id="remote-status">● DISCONNECTED</div>
+        </div>
+        
+        <hr>
+        
+        <div class="section">
+            <h3>CROWD ENERGY</h3>
+            <div class="big-value" id="val-level">0%</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="bar-level" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="section">
+            <h3>MICROPHONE</h3>
+            <div class="status active" id="mic-status">● IDLE</div>
+        </div>
+        
+        <hr>
+        
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-label">PEAK</div>
+                <div class="stat-value" id="val-peak">0%</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">AVERAGE</div>
+                <div class="stat-value" id="val-avg">0%</div>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="controls-row">
+            <button id="btn-start" class="btn btn-primary">START</button>
+            <button id="btn-pause" class="btn">PAUSE</button>
+            <button id="btn-reset" class="btn btn-danger">RESET</button>
+        </div>
+        
+        <hr>
+        
+        <div class="section">
+            <h3>MANUAL OVERRIDE</h3>
+            <div class="override-control">
+                <button class="btn-round" id="btn-override-minus">−</button>
+                <div class="override-val" id="val-override">OFF</div>
+                <button class="btn-round" id="btn-override-plus">+</button>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="section">
+            <h3>EFFECT</h3>
+            <div class="effect-group">
+                <button class="btn-effect" data-effect="minimal">MINIMAL</button>
+                <button class="btn-effect" data-effect="energy">ENERGY</button>
+                <button class="btn-effect active" data-effect="cinematic">CINEMATIC</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/remote.js"></script>
+</body>
+</html>
