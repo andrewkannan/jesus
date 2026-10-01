@@ -40,9 +40,11 @@ body, html {
 }
 
 #jesus-text {
-    font-size: 15vw;
+    font-family: 'Montserrat', sans-serif; /* Sleek, powerful, modern */
+    /* Alternatively, for a more epic historical cinematic look, use: font-family: 'Cinzel', serif; */
+    font-size: 18vw;
     font-weight: 900;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
     margin: 0;
     padding: 0;
     text-align: center;
