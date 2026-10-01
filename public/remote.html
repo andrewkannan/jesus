@@ -75,12 +75,14 @@
         <hr>
         
         <div class="section">
-            <h3>MANUAL OVERRIDE</h3>
-            <div class="override-control">
-                <button class="btn-round" id="btn-override-minus">−</button>
-                <div class="override-val" id="val-override">OFF</div>
-                <button class="btn-round" id="btn-override-plus">+</button>
+            <h3 style="display:flex; justify-content:space-between; align-items:center;">
+                MANUAL OVERRIDE 
+                <span class="override-val" id="val-override">OFF</span>
+            </h3>
+            <div class="override-control" style="margin-top: 15px;">
+                <input type="range" id="slider-override" min="40" max="130" value="40" step="1" style="width: 100%;">
             </div>
+            <button id="btn-override-off" class="btn btn-danger" style="margin-top:15px; width:100%; padding:8px 0; font-size:12px;">DISABLE OVERRIDE</button>
         </div>
     </div>
 

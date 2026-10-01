@@ -18,8 +18,6 @@ const valAvg = document.getElementById('val-avg');
 const btnStart = document.getElementById('btn-start');
 const btnPause = document.getElementById('btn-pause');
 const btnReset = document.getElementById('btn-reset');
-const btnOverrideMinus = document.getElementById('btn-override-minus');
-const btnOverridePlus = document.getElementById('btn-override-plus');
 const valOverride = document.getElementById('val-override');
 
 // State
@@ -272,23 +270,22 @@ btnReset.addEventListener('click', () => {
     sendCommand('reset');
 });
 
-btnOverrideMinus.addEventListener('click', () => {
+const sliderOverride = document.getElementById('slider-override');
+const btnOverrideOff = document.getElementById('btn-override-off');
+
+sliderOverride.addEventListener('input', (e) => {
     if (!manualOverride) manualOverride = true;
-    overrideLevel = Math.max(40, overrideLevel - 10);
+    overrideLevel = parseInt(e.target.value);
     valOverride.innerText = `${overrideLevel} dB`;
+    valOverride.style.color = '#32d74b'; // green when active
     if (!isListening) processSimulatedDb(overrideLevel);
 });
 
-btnOverridePlus.addEventListener('click', () => {
-    if (!manualOverride) manualOverride = true;
-    overrideLevel = Math.min(130, overrideLevel + 10);
-    valOverride.innerText = `${overrideLevel} dB`;
-    if (!isListening) processSimulatedDb(overrideLevel);
-});
-
-valOverride.addEventListener('click', () => {
+btnOverrideOff.addEventListener('click', () => {
     manualOverride = false;
     valOverride.innerText = 'OFF';
+    valOverride.style.color = '#ff453a'; // red when off
+    sliderOverride.value = 40;
     if (!isListening) {
         updateUI(0, peakDb, 0, 0);
         sendUpdate(0, peakDb, 0, 0);
