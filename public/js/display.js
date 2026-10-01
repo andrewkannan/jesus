@@ -183,61 +183,36 @@ function applyEffect(level, effect, tier) {
 
     const nLevel = Math.max(0, Math.min(100, level)) / 100;
 
+    // Reset styles that might have been applied directly
+    textEl.className = '';
+    textEl.style.textShadow = '';
+    
     if (tier === 1) {
-        // TIER 1 (105 dB): ELECTRIC BLUE
+        textEl.classList.add('tier-1');
         scale = 1.15;
-        textEl.style.color = '#fff';
         const offsetX = (Math.random() - 0.5) * 2;
         const offsetY = (Math.random() - 0.5) * 2;
-        textShadow = `
-            0 0 20px #fff,
-            0 0 40px #00ffff,
-            0 0 80px #0000ff,
-            0 0 120px rgba(0, 100, 255, 0.8)
-        `;
         textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     }
     else if (tier === 2) {
-        // TIER 2 (110 dB): GOLDEN HOLY FIRE
+        textEl.classList.add('tier-2');
         scale = 1.25;
-        textEl.style.color = '#fff';
         const offsetX = (Math.random() - 0.5) * 4;
         const offsetY = (Math.random() - 0.5) * 4;
-        textShadow = `
-            0 -10px 30px #fff, 
-            0 -20px 50px #ffe600, 
-            0 -40px 80px #ff8c00,
-            0 0 100px rgba(255, 140, 0, 0.8)
-        `;
         textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     }
     else if (tier === 3) {
-        // TIER 3 (115 dB): BLINDING WHITE GLORY
+        textEl.classList.add('tier-3');
         scale = 1.35;
-        textEl.style.color = '#fff';
         const offsetX = (Math.random() - 0.5) * 6;
         const offsetY = (Math.random() - 0.5) * 6;
-        textShadow = `
-            0 0 40px #fff, 
-            0 0 80px #fff, 
-            0 0 120px #fff,
-            0 0 150px rgba(255, 255, 255, 0.8)
-        `;
         textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     }
     else if (tier === 4) {
-        // TIER 4 (120+ dB): HEAVENLY RUMBLE (Cosmic/Rainbow Aura)
+        textEl.classList.add('tier-4');
         scale = 1.45;
-        textEl.style.color = '#fff';
         const offsetX = (Math.random() - 0.5) * 12;
         const offsetY = (Math.random() - 0.5) * 12;
-        textShadow = `
-            0 0 40px #fff, 
-            0 -40px 100px #00ffff, 
-            0 40px 100px #ff00ff,
-            -40px 0 100px #ffe600,
-            40px 0 100px #ff0000
-        `;
         textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     } 
     else if (effect === 'minimal') {
@@ -255,7 +230,7 @@ function applyEffect(level, effect, tier) {
         textEl.style.color = `rgb(${r}, ${g}, ${b})`;
         
         const glow = nLevel * 50;
-        textShadow = `0 0 ${glow}px rgba(255, 100, 100, ${nLevel})`;
+        textEl.style.textShadow = `0 0 ${glow}px rgba(255, 100, 100, ${nLevel})`;
         
         if (nLevel > 0.8) {
             const offsetX = (Math.random() - 0.5) * (nLevel * 10);
@@ -267,14 +242,13 @@ function applyEffect(level, effect, tier) {
     } 
     else {
         // Cinematic (Default) - builds up intensely towards Tier 1 (105 dB)
-        // nLevel is based on progressPercent (40dB = 0%, 105dB = 72%)
         scale = 1 + (nLevel * 0.15); // Scales up to 1.15
         opacity = 0.6 + (nLevel * 0.4);
         
         // Tremble effect as they get closer to Tier 1
         let offsetX = 0;
         let offsetY = 0;
-        if (nLevel > 0.5) { // Starts trembling around 85 dB
+        if (nLevel > 0.5) { 
             const rumble = (nLevel - 0.5) * 4;
             offsetX = (Math.random() - 0.5) * rumble;
             offsetY = (Math.random() - 0.5) * rumble;
@@ -286,13 +260,12 @@ function applyEffect(level, effect, tier) {
         const g = Math.floor(255 - (nLevel * 20));
         const b = 255;
 
-        textShadow = `0 0 ${baseGlow}px rgba(${r}, ${g}, ${b}, ${nLevel * 0.9})`;
+        textEl.style.textShadow = `0 0 ${baseGlow}px rgba(${r}, ${g}, ${b}, ${nLevel * 0.9})`;
         textEl.style.color = '#fff';
         textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     }
 
     textEl.style.opacity = opacity;
-    textEl.style.textShadow = textShadow;
 }
 
 requestAnimationFrame(render);
