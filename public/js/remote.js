@@ -11,6 +11,7 @@ const remoteStatus = document.getElementById('remote-status');
 const micStatus = document.getElementById('mic-status');
 const valLevel = document.getElementById('val-level');
 const barLevel = document.getElementById('bar-level');
+const tierStatus = document.getElementById('tier-status');
 const valPeak = document.getElementById('val-peak');
 const valAvg = document.getElementById('val-avg');
 
@@ -26,11 +27,22 @@ const effectBtns = document.querySelectorAll('.btn-effect');
 let pin = '';
 let isListening = false;
 let manualOverride = false;
-let overrideLevel = 73; // Animation visual level
+let overrideLevel = 73; 
 let currentEffect = 'cinematic';
 let peakDb = 0;
 let dbHistory = [];
 let lastDb = 0;
+
+let currentTier = 0;
+let achievementTimer = null;
+
+const TIER_THRESHOLDS = [
+    { db: 120, tier: 4, name: "TIER 4: HEAVENLY RUMBLE", color: "#ff00ff" }, 
+    { db: 115, tier: 3, name: "TIER 3: BLINDING GLORY", color: "#ffffff" }, 
+    { db: 110, tier: 2, name: "TIER 2: HOLY FIRE", color: "#ff8c00" }, 
+    { db: 105, tier: 1, name: "TIER 1: ELECTRIC BLUE", color: "#00aaff" }  
+];
+
 
 // Audio Context
 let audioContext;
@@ -123,7 +135,7 @@ async function startListening() {
             
             let volume = values / length;
             
-            // Visual Animation Level (0-100 clamped)
+            // Visual Animation Level (0-100 clamped) - just for manual override logic backward compatibility
             let visualLevel = Math.min(100, Math.round((volume / 128) * 100 * 2.0));
             
             // Decibel approximation mapping (feels limitless up to ~130dB)
@@ -136,6 +148,24 @@ async function startListening() {
             if (dbHistory.length > 50) dbHistory.shift();
             
             const avgDb = Math.round(dbHistory.reduce((a, b) => a + b, 0) / dbHistory.length);
+
+            // Determine Tier
+            let newTier = 0;
+            for (const t of TIER_THRESHOLDS) {
+                if (currentDb >= t.db) {
+                    newTier = t.tier;
+                    break;
+                }
+            }
+            
+            if (newTier > currentTier) {
+                currentTier = newTier;
+                if (achievementTimer) clearTimeout(achievementTimer);
+                achievementTimer = setTimeout(() => {
+                    currentTier = 0;
+                    updateTierUI();
+                }, 10000);
+            }
 
             updateUI(currentDb, peakDb, avgDb, visualLevel);
             sendUpdate(visualLevel, peakDb, avgDb, currentDb);
@@ -191,12 +221,41 @@ function sendCommand(cmd) {
 }
 
 // --- UI UPDATES ---
+function updateTierUI() {
+    if (currentTier === 0) {
+        tierStatus.innerText = 'NORMAL';
+        tierStatus.style.color = '#888';
+        tierStatus.style.borderColor = '#333';
+        tierStatus.style.boxShadow = 'none';
+        barLevel.style.backgroundColor = '#fff';
+    } else {
+        const t = TIER_THRESHOLDS.find(x => x.tier === currentTier);
+        tierStatus.innerText = t.name;
+        tierStatus.style.color = t.color;
+        tierStatus.style.borderColor = t.color;
+        tierStatus.style.boxShadow = `0 0 10px ${t.color}`;
+        barLevel.style.backgroundColor = t.color;
+    }
+}
+
 function updateUI(currentDb, peak, avg, visualLevel) {
-    const displayLevel = manualOverride ? overrideLevel : visualLevel;
+    updateTierUI();
     
-    // We update the big value to dB, but keep the bar percentage tied to visualLevel
-    valLevel.innerText = manualOverride ? `${displayLevel}%` : `${currentDb} dB`;
-    barLevel.style.width = `${displayLevel}%`;
+    if (manualOverride) {
+        valLevel.innerText = `${overrideLevel}%`;
+        barLevel.style.width = `${overrideLevel}%`;
+    } else {
+        valLevel.innerText = `${currentDb} dB`;
+        // Map 40-130 dB to 0-100% for the progress bar
+        let progressPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
+        
+        // If locked into a tier, show max bar just like display
+        if (currentTier > 0) {
+            progressPercent = 100;
+        }
+        
+        barLevel.style.width = `${progressPercent}%`;
+    }
     
     valPeak.innerText = `${peak} dB`;
     valAvg.innerText = `${avg} dB`;
@@ -210,6 +269,8 @@ btnPause.addEventListener('click', stopListening);
 btnReset.addEventListener('click', () => {
     peakDb = 0;
     dbHistory = [];
+    currentTier = 0;
+    if (achievementTimer) clearTimeout(achievementTimer);
     updateUI(0, 0, 0, 0);
     sendCommand('reset');
 });
