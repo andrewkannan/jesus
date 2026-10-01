@@ -90,6 +90,9 @@ socket.on('disconnect', () => {
     remoteStatus.classList.remove('active');
 });
 
+let lastSendTime = 0;
+let lastSentDb = -1;
+
 // --- CENTRAL DATA PROCESSOR ---
 function processSimulatedDb(currentDb) {
     lastDb = currentDb;
@@ -128,7 +131,14 @@ function processSimulatedDb(currentDb) {
     }
 
     updateUI(currentDb, peakDb, avgDb, progressPercent);
-    sendUpdate(progressPercent, peakDb, avgDb, currentDb);
+    
+    const now = Date.now();
+    // Only blast socket updates if dB actually changed or 50ms has passed (max 20fps to prevent network bloat)
+    if (currentDb !== lastSentDb || now - lastSendTime > 50) {
+        sendUpdate(progressPercent, peakDb, avgDb, currentDb);
+        lastSentDb = currentDb;
+        lastSendTime = now;
+    }
 }
 
 // --- AUDIO PROCESSING ---
@@ -148,7 +158,7 @@ async function startListening() {
         analyser = audioContext.createAnalyser();
         microphone = audioContext.createMediaStreamSource(stream);
 
-        analyser.smoothingTimeConstant = 0.8;
+        analyser.smoothingTimeConstant = 0.4; // Reduced from 0.8 for much faster response
         analyser.fftSize = 1024;
 
         microphone.connect(analyser);

@@ -166,7 +166,8 @@ function render() {
         targetLevel = 0;
     }
 
-    currentLevel += (targetLevel - currentLevel) * 0.1;
+    // Snappier lerp (0.4 instead of 0.1) for much faster word response
+    currentLevel += (targetLevel - currentLevel) * 0.4;
     
     // Force maximum visual level if a tier is achieved
     let visualLevel = currentTier > 0 ? 100 : currentLevel;
