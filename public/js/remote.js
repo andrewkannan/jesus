@@ -43,6 +43,7 @@ const TIER_THRESHOLDS = [
 let audioContext;
 let analyser;
 let microphone;
+let mediaStream;
 
 // --- AUTHENTICATION ---
 btnSubmitPin.addEventListener('click', submitPin);
@@ -113,29 +114,36 @@ function processSimulatedDb(currentDb) {
         }
     }
     
-    if (newTier > currentTier) {
+    if (manualOverride) {
+        // When testing/controlling with manual override slider, allow moving up and down across all tiers freely
+        currentTier = newTier;
+        if (achievementTimer) {
+            clearTimeout(achievementTimer);
+            achievementTimer = null;
+        }
+    } else if (newTier > currentTier) {
+        // Live mic: lock highest reached tier for 10 seconds
         currentTier = newTier;
         if (achievementTimer) clearTimeout(achievementTimer);
         achievementTimer = setTimeout(() => {
             currentTier = 0;
+            achievementTimer = null;
             updateTierUI();
         }, 10000);
     }
 
-    // Map 40-130 dB to 0-100% for the progress bar and main display animation
-    let progressPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
+    // Map 40-130 dB to 0-100% for the remote progress bar (matches T1-T4 tick marks accurately)
+    const barPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
     
-    // If locked into a tier, send max animation
-    if (currentTier > 0) {
-        progressPercent = 100;
-    }
+    // If locked into a tier, send max visual level (100) to the main display while keeping true barPercent on remote
+    const displayVisualLevel = currentTier > 0 ? 100 : barPercent;
 
-    updateUI(currentDb, peakDb, avgDb, progressPercent);
+    updateUI(currentDb, peakDb, avgDb, barPercent);
     
     const now = Date.now();
     // Only blast socket updates if dB actually changed or 50ms has passed (max 20fps to prevent network bloat)
     if (currentDb !== lastSentDb || now - lastSendTime > 50) {
-        sendUpdate(progressPercent, peakDb, avgDb, currentDb);
+        sendUpdate(displayVisualLevel, peakDb, avgDb, currentDb);
         lastSentDb = currentDb;
         lastSendTime = now;
     }
@@ -153,12 +161,20 @@ async function startListening() {
     }
     
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        // Disable browser AGC, noise suppression, and echo cancellation so loud crowd roars aren't dampened
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            },
+            video: false
+        });
         
         analyser = audioContext.createAnalyser();
-        microphone = audioContext.createMediaStreamSource(stream);
+        microphone = audioContext.createMediaStreamSource(mediaStream);
 
-        analyser.smoothingTimeConstant = 0.4; // Reduced from 0.8 for much faster response
+        analyser.smoothingTimeConstant = 0.4; // Fast response
         analyser.fftSize = 1024;
 
         microphone.connect(analyser);
@@ -173,16 +189,16 @@ async function startListening() {
             const array = new Uint8Array(analyser.frequencyBinCount);
             analyser.getByteFrequencyData(array);
             
-            let values = 0;
-            const length = array.length;
-            for (let i = 0; i < length; i++) {
-                values += (array[i]);
+            // Focus on vocal and crowd energy frequencies (bins 1..120, ~43Hz to ~5.1kHz) using RMS
+            const vocalBins = Math.min(120, array.length);
+            let sumSquares = 0;
+            for (let i = 1; i < vocalBins; i++) {
+                sumSquares += array[i] * array[i];
             }
+            const rms = Math.sqrt(sumSquares / (vocalBins - 1));
             
-            let volume = values / length;
-            
-            // Decibel approximation mapping (feels limitless up to ~130dB)
-            let currentDb = volume > 2 ? Math.round(40 + (volume * 0.6)) : 0;
+            // Map vocal RMS (0-255) into the 40-130 dB show range so full crowd energy reaches Tiers 1-4
+            let currentDb = rms > 2 ? Math.min(130, Math.round(40 + (rms * 0.52))) : 0;
             
             if (manualOverride) {
                 currentDb = overrideLevel;
@@ -207,13 +223,19 @@ function stopListening() {
     if (window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
     if (analyser) analyser.disconnect();
     if (microphone) microphone.disconnect();
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+    }
     
     isListening = false;
-    micStatus.innerText = '● IDLE';
+    micStatus.innerText = '● MIC IDLE';
     micStatus.classList.remove('active');
     
-    updateUI(0, peakDb, 0, 0);
-    sendUpdate(0, peakDb, 0, 0);
+    if (!manualOverride) {
+        updateUI(0, peakDb, 0, 0);
+        sendUpdate(0, peakDb, 0, 0);
+    }
 }
 
 // --- DATA SYNC ---
@@ -257,16 +279,19 @@ function updateTierUI() {
     }
 }
 
-function updateUI(currentDb, peak, avg, visualLevel) {
+function updateUI(currentDb, peak, avg, barPercent) {
     updateTierUI();
     
     valLevel.innerText = `${currentDb} dB`;
-    barLevel.style.width = `${visualLevel}%`;
+    barLevel.style.width = `${barPercent}%`;
     valPeak.innerText = `${peak} dB`;
     valAvg.innerText = `${avg} dB`;
 }
 
 // --- CONTROLS ---
+const sliderOverride = document.getElementById('slider-override');
+const btnOverrideOff = document.getElementById('btn-override-off');
+
 btnStart.addEventListener('click', startListening);
 
 btnPause.addEventListener('click', stopListening);
@@ -275,17 +300,23 @@ btnReset.addEventListener('click', () => {
     peakDb = 0;
     dbHistory = [];
     currentTier = 0;
-    if (achievementTimer) clearTimeout(achievementTimer);
+    lastSentDb = -1;
+    manualOverride = false;
+    overrideLevel = 40;
+    valOverride.innerText = 'OFF';
+    valOverride.style.color = '#ff453a';
+    sliderOverride.value = 40;
+    if (achievementTimer) {
+        clearTimeout(achievementTimer);
+        achievementTimer = null;
+    }
     updateUI(0, 0, 0, 0);
     sendCommand('reset');
 });
 
-const sliderOverride = document.getElementById('slider-override');
-const btnOverrideOff = document.getElementById('btn-override-off');
-
 sliderOverride.addEventListener('input', (e) => {
     if (!manualOverride) manualOverride = true;
-    overrideLevel = parseInt(e.target.value);
+    overrideLevel = parseInt(e.target.value, 10);
     valOverride.innerText = `${overrideLevel} dB`;
     valOverride.style.color = '#32d74b'; // green when active
     if (!isListening) processSimulatedDb(overrideLevel);
@@ -293,6 +324,13 @@ sliderOverride.addEventListener('input', (e) => {
 
 btnOverrideOff.addEventListener('click', () => {
     manualOverride = false;
+    overrideLevel = 40;
+    currentTier = 0;
+    lastSentDb = -1;
+    if (achievementTimer) {
+        clearTimeout(achievementTimer);
+        achievementTimer = null;
+    }
     valOverride.innerText = 'OFF';
     valOverride.style.color = '#ff453a'; // red when off
     sliderOverride.value = 40;

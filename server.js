@@ -15,12 +15,12 @@ let globalState = {
   peak: 0,
   average: 0,
   status: 'idle',
-  effect: 'cinematic',
   manualOverride: false,
+  reset: false,
   updatedAt: Date.now()
 };
 
-const REMOTE_PIN = process.env.REMOTE_PIN || '1234';
+const REMOTE_PIN = (process.env.REMOTE_PIN || 'JESUS').trim().toUpperCase();
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -28,7 +28,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Authentication endpoint for the remote
 app.post('/api/auth', (req, res) => {
-  const { pin } = req.body;
+  const pin = (req.body && req.body.pin ? String(req.body.pin) : '').trim().toUpperCase();
   if (pin === REMOTE_PIN) {
     res.json({ success: true });
   } else {
@@ -49,8 +49,7 @@ io.on('connection', (socket) => {
   socket.emit('state_update', globalState);
 
   socket.on('remote_update', (data) => {
-    // Basic verification: remote should send the pin with updates
-    if (data.pin !== REMOTE_PIN) {
+    if (!data || String(data.pin || '').trim().toUpperCase() !== REMOTE_PIN) {
         return;
     }
 
@@ -62,8 +61,8 @@ io.on('connection', (socket) => {
       peak: typeof data.peak === 'number' ? data.peak : globalState.peak,
       average: typeof data.average === 'number' ? data.average : globalState.average,
       status: data.status || globalState.status,
-      effect: data.effect || globalState.effect,
       manualOverride: typeof data.manualOverride === 'boolean' ? data.manualOverride : globalState.manualOverride,
+      reset: false,
       updatedAt: Date.now()
     };
     
@@ -72,15 +71,19 @@ io.on('connection', (socket) => {
   });
   
   socket.on('command', (data) => {
-     if (data.pin !== REMOTE_PIN) return;
+     if (!data || String(data.pin || '').trim().toUpperCase() !== REMOTE_PIN) return;
      
      if (data.command === 'reset') {
-         globalState.level = 0;
-         globalState.db = 0;
-         globalState.peak = 0;
-         globalState.average = 0;
-         globalState.status = 'idle';
-         globalState.updatedAt = Date.now();
+         globalState = {
+           level: 0,
+           db: 0,
+           peak: 0,
+           average: 0,
+           status: 'idle',
+           manualOverride: false,
+           reset: true,
+           updatedAt: Date.now()
+         };
          io.emit('state_update', globalState);
      }
   });

@@ -29,7 +29,7 @@ audioOverlay.addEventListener('click', () => {
 let targetLevel = 0;
 let currentLevel = 0;
 let lastUpdate = Date.now();
-let effectMode = 'cinematic'; // 'minimal', 'energy', 'cinematic'
+let isManualOverride = false;
 
 // Connection handling
 socket.on('connect', () => {
@@ -41,44 +41,75 @@ socket.on('disconnect', () => {
     statusEl.textContent = '● DISCONNECTED';
     statusEl.className = '';
     targetLevel = 0;
+    isManualOverride = false;
 });
 
 // Receive state updates
 socket.on('state_update', (state) => {
-    if (state.manualOverride) {
-        targetLevel = state.level;
-    } else {
-        targetLevel = state.level;
+    // Handle explicit reset or override disable to 0
+    if (state.reset) {
+        if (achievementTimer) {
+            clearTimeout(achievementTimer);
+            achievementTimer = null;
+        }
+        currentTier = 0;
+        targetLevel = 0;
+        currentLevel = 0;
+        isManualOverride = false;
+        if (scorePeakEl) scorePeakEl.textContent = '0 dB';
+        lastUpdate = Date.now();
+        return;
     }
+
+    const wasManualOverride = isManualOverride;
+    isManualOverride = Boolean(state.manualOverride);
+    targetLevel = typeof state.level === 'number' ? state.level : 0;
     
     if (scorePeakEl) {
         scorePeakEl.textContent = `${state.peak || 0} dB`;
     }
     
     // Check for Achievement Glow Tiers
-    if (state.db) {
-        let newTier = 0;
-        for (const t of TIER_THRESHOLDS) {
-            if (state.db >= t.db) {
-                newTier = t.tier;
-                break;
-            }
-        }
-        
-        // Only upgrade the tier, don't downgrade it immediately if locked
-        if (newTier > currentTier) {
-            playAchievementSound(newTier);
-            currentTier = newTier;
-            
-            if (achievementTimer) clearTimeout(achievementTimer);
-            // Lock the achievement glow for 10 seconds
-            achievementTimer = setTimeout(() => {
-                currentTier = 0;
-            }, 10000);
+    const db = typeof state.db === 'number' ? state.db : 0;
+    let newTier = 0;
+    for (const t of TIER_THRESHOLDS) {
+        if (db >= t.db) {
+            newTier = t.tier;
+            break;
         }
     }
+
+    if (isManualOverride) {
+        // In manual override, allow moving up AND down across all tiers freely for testing
+        if (newTier !== currentTier) {
+            if (newTier > 0) {
+                playAchievementSound(newTier);
+            }
+            currentTier = newTier;
+        }
+        if (achievementTimer) {
+            clearTimeout(achievementTimer);
+            achievementTimer = null;
+        }
+    } else if (wasManualOverride && !isManualOverride) {
+        // Override was just turned off: clear any override-held tier
+        if (achievementTimer) {
+            clearTimeout(achievementTimer);
+            achievementTimer = null;
+        }
+        currentTier = newTier;
+    } else if (newTier > currentTier) {
+        // Live crowd audio: upgrade tier and lock the achievement glow for 10 seconds
+        playAchievementSound(newTier);
+        currentTier = newTier;
+        
+        if (achievementTimer) clearTimeout(achievementTimer);
+        achievementTimer = setTimeout(() => {
+            currentTier = 0;
+            achievementTimer = null;
+        }, 10000);
+    }
     
-    effectMode = state.effect;
     lastUpdate = Date.now();
 });
 
@@ -162,7 +193,8 @@ function playAchievementSound(tier) {
 
 // Render loop
 function render() {
-    if (Date.now() - lastUpdate > 2000) {
+    // Only decay to 0 on idle timeout if manual override is NOT active
+    if (!isManualOverride && Date.now() - lastUpdate > 2000) {
         targetLevel = 0;
     }
 
@@ -170,16 +202,15 @@ function render() {
     currentLevel += (targetLevel - currentLevel) * 0.4;
     
     // Force maximum visual level if a tier is achieved
-    let visualLevel = currentTier > 0 ? 100 : currentLevel;
+    const visualLevel = currentTier > 0 ? 100 : currentLevel;
     
-    applyEffect(visualLevel, effectMode, currentTier);
+    applyEffect(visualLevel, currentTier);
 
     requestAnimationFrame(render);
 }
 
-function applyEffect(level, effect, tier) {
+function applyEffect(level, tier) {
     let scale = 1;
-    let textShadow = 'none';
     let opacity = 1;
 
     const nLevel = Math.max(0, Math.min(100, level)) / 100;
@@ -216,33 +247,8 @@ function applyEffect(level, effect, tier) {
         const offsetY = (Math.random() - 0.5) * 12;
         textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
     } 
-    else if (effect === 'minimal') {
-        opacity = 0.5 + (nLevel * 0.5);
-        scale = 1 + (nLevel * 0.05);
-        textEl.style.color = '#fff';
-        textEl.style.transform = `scale(${scale})`;
-    } 
-    else if (effect === 'energy') {
-        scale = 1 + (nLevel * 0.2);
-        
-        const r = Math.floor(255);
-        const g = Math.floor(255 - (nLevel * 100));
-        const b = Math.floor(255 - (nLevel * 100));
-        textEl.style.color = `rgb(${r}, ${g}, ${b})`;
-        
-        const glow = nLevel * 50;
-        textEl.style.textShadow = `0 0 ${glow}px rgba(255, 100, 100, ${nLevel})`;
-        
-        if (nLevel > 0.8) {
-            const offsetX = (Math.random() - 0.5) * (nLevel * 10);
-            const offsetY = (Math.random() - 0.5) * (nLevel * 10);
-            textEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-        } else {
-            textEl.style.transform = `translate(0px, 0px) scale(${scale})`;
-        }
-    } 
     else {
-        // Cinematic (Default) - builds up intensely towards Tier 1 (105 dB)
+        // Cinematic build-up towards Tier 1 (105 dB)
         scale = 1 + (nLevel * 0.15); // Scales up to 1.15
         opacity = 0.6 + (nLevel * 0.4);
         
