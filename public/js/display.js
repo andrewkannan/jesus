@@ -12,7 +12,6 @@ const unlockContainer = document.getElementById('unlock-container');
 const unlockLabel = document.getElementById('unlock-label');
 const unlockFill = document.getElementById('unlock-fill');
 const audioOverlay = document.getElementById('audio-overlay');
-const stepPills = document.querySelectorAll('.step-pill');
 const meterTags = [
     document.getElementById('m-tier-1'),
     document.getElementById('m-tier-2'),
@@ -20,37 +19,39 @@ const meterTags = [
     document.getElementById('m-tier-4')
 ];
 
-// 4 Groups + Grand Finale Configuration
+const UNLOCK_DURATION_MS = 5000; // 5 seconds lock & unlock
+
+// 4 Words + Grand Finale Configuration (Clean worship text, no "Group X Complete")
 const STAGES = [
     {
         stage: 0,
-        eyebrow: 'GROUP 01 // LIFT YOUR VOICE',
+        eyebrow: 'LIFT YOUR VOICE IN PRAISE',
         word: 'JESUS',
-        unlockMsg: 'GROUP 1 COMPLETE — UNLOCKING GROUP 2: "I AM FREE"'
+        unlockMsg: 'CROWN OF GLORY — UNLOCKING NEXT WORD'
     },
     {
         stage: 1,
-        eyebrow: 'GROUP 02 // DECLARE YOUR FREEDOM',
+        eyebrow: 'DECLARE YOUR FREEDOM',
         word: 'I AM FREE',
-        unlockMsg: 'GROUP 2 COMPLETE — UNLOCKING GROUP 3: "HE IS RISEN"'
+        unlockMsg: 'CROWN OF GLORY — UNLOCKING NEXT WORD'
     },
     {
         stage: 2,
-        eyebrow: 'GROUP 03 // PROCLAIM THE LIVING HOPE',
+        eyebrow: 'PROCLAIM THE LIVING HOPE',
         word: 'HE IS RISEN',
-        unlockMsg: 'GROUP 3 COMPLETE — UNLOCKING GROUP 4: "VICTORY"'
+        unlockMsg: 'CROWN OF GLORY — UNLOCKING NEXT WORD'
     },
     {
         stage: 3,
-        eyebrow: 'GROUP 04 // SHOUT FOR THE FINAL UNLOCK',
+        eyebrow: 'WALK IN HIS POWER',
         word: 'VICTORY',
-        unlockMsg: 'ALL 4 GROUPS COMPLETE — UNLOCKING GRAND FINALE!'
+        unlockMsg: 'CROWN OF GLORY — UNLOCKING FINAL WORD'
     },
     {
         stage: 4,
-        eyebrow: '★ GRAND FINALE UNLOCKED // WALK IN HIS PROMISE ★',
+        eyebrow: '★ WALK IN HIS PROMISE ★',
         word: 'NOTHING IS IMPOSSIBLE\nWITH GOD',
-        unlockMsg: 'ALL PRAISE & GLORY FOREVER'
+        unlockMsg: '★ GOD IS FAITHFUL ★'
     }
 ];
 
@@ -158,18 +159,8 @@ function applyStageUI(stageIdx, animate = true) {
         spawnShockwave(1.5, 3);
     }
 
-    // Update top stepper pills
-    stepPills.forEach((pill, idx) => {
-        pill.classList.remove('active', 'completed');
-        if (idx < safeIdx) {
-            pill.classList.add('completed');
-        } else if (idx === safeIdx) {
-            pill.classList.add('active');
-        }
-    });
-
     if (safeIdx === 4) {
-        tierBadgeEl.textContent = '★ ALL GROUPS COMPLETE · GOD IS FAITHFUL ★';
+        tierBadgeEl.textContent = '★ GOD IS FAITHFUL ★';
         tierBadgeEl.style.color = '#996515';
         tierBadgeEl.style.borderColor = 'rgba(212, 175, 55, 0.5)';
         unlockContainer.classList.add('hidden');
@@ -184,7 +175,7 @@ function updateTierBadge(tier, db) {
     });
 
     if (currentStage === 4) {
-        tierBadgeEl.textContent = '★ ALL GROUPS COMPLETE · GOD IS FAITHFUL ★';
+        tierBadgeEl.textContent = '★ GOD IS FAITHFUL ★';
         tierBadgeEl.style.color = '#996515';
         tierBadgeEl.style.borderColor = 'rgba(212, 175, 55, 0.55)';
         return;
@@ -192,15 +183,15 @@ function updateTierBadge(tier, db) {
 
     if (tier > 0) {
         const t = TIER_THRESHOLDS.find(x => x.tier === tier);
-        tierBadgeEl.textContent = t ? t.label : 'PRAISE UNLOCKED';
+        tierBadgeEl.textContent = t ? t.label : '★ GOD IS FAITHFUL ★';
         tierBadgeEl.style.color = t ? t.color : '#996515';
         tierBadgeEl.style.borderColor = 'rgba(180, 83, 9, 0.45)';
     } else if (db >= 70) {
-        tierBadgeEl.textContent = `BUILDING PRAISE · REACH 105 dB FOR TIER 1`;
+        tierBadgeEl.textContent = '★ GOD IS FAITHFUL · KEEP LIFTING YOUR VOICE ★';
         tierBadgeEl.style.color = '#575047';
         tierBadgeEl.style.borderColor = 'rgba(153, 101, 21, 0.22)';
     } else {
-        tierBadgeEl.textContent = 'READY FOR PRAISE · TARGET 105–120 dB';
+        tierBadgeEl.textContent = '★ GOD IS FAITHFUL ★';
         tierBadgeEl.style.color = '#8C8275';
         tierBadgeEl.style.borderColor = 'rgba(153, 101, 21, 0.16)';
     }
@@ -303,7 +294,7 @@ socket.on('state_update', (state) => {
             currentTier = 0;
             clearTierLock();
             updateTierBadge(0, currentDb);
-        }, 10000);
+        }, UNLOCK_DURATION_MS);
     }
 
     updateTierBadge(currentTier, currentDb);
@@ -410,10 +401,10 @@ function render() {
     const visualLevel = (currentTier > 0 || currentStage === 4) ? 100 : currentLevel;
     const nLevel = Math.max(0, Math.min(100, visualLevel)) / 100;
 
-    // Update 10-second Tier 4 unlock progress bar if active
+    // Update 5-second Tier 4 unlock progress bar if active
     if (tier4StartTime > 0 && currentTier === 4 && currentStage < 4) {
         const elapsed = now - tier4StartTime;
-        const pct = Math.min(100, (elapsed / 10000) * 100);
+        const pct = Math.min(100, (elapsed / UNLOCK_DURATION_MS) * 100);
         unlockFill.style.width = `${pct}%`;
     }
 

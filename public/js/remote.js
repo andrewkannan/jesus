@@ -37,6 +37,7 @@ let pin = '';
 let isListening = false;
 let manualOverride = false;
 let overrideLevel = 40;
+let difficultyOffset = 0; // -30 (Harder) to +35 (Easier) dB adjustment
 let peakDb = 0;
 let dbHistory = [];
 let lastDb = 0;
@@ -44,6 +45,8 @@ let lastDb = 0;
 let currentStage = 0;
 let currentTier = 0;
 let achievementTimer = null;
+
+const UNLOCK_DURATION_MS = 5000; // 5 seconds lock & unlock
 
 const TIER_THRESHOLDS = [
     { db: 120, tier: 4, name: "TIER 4: CROWN OF GLORY (UNLOCKING)", color: "#F59E0B" }, 
@@ -139,6 +142,11 @@ function advanceOrSetStage(nextStage) {
         achievementTimer = null;
     }
 
+    // Pause mic between groups so the Emcee can introduce the next group and tap START MIC when ready
+    if (isListening) {
+        stopListening(true);
+    }
+
     // If manual override was used to test unlocking Tier 4, reset override back to OFF for the newly unlocked word
     if (manualOverride) {
         manualOverride = false;
@@ -164,13 +172,13 @@ function scheduleTierLockOrUnlock(tierReached) {
     achievementTimer = setTimeout(() => {
         achievementTimer = null;
         if (tierReached === 4 && currentStage < 4) {
-            // Auto-unlock next group word (or Grand Finale after Group 4) after 10s celebration!
+            // Auto-unlock next group word (or Grand Finale after Group 4) after 5s celebration!
             advanceOrSetStage(currentStage + 1);
         } else {
             currentTier = 0;
             updateTierUI();
         }
-    }, 10000);
+    }, UNLOCK_DURATION_MS);
 }
 
 // --- CENTRAL DATA PROCESSOR ---
@@ -194,7 +202,7 @@ function processSimulatedDb(currentDb) {
     }
     
     if (manualOverride) {
-        // Allow moving up and down across all tiers freely for testing; if left at Tier 4 for 10s, auto-unlock next group!
+        // Allow moving up and down across all tiers freely for testing; if left at Tier 4 for 5s, auto-unlock next group!
         if (newTier !== currentTier) {
             currentTier = newTier;
             if (currentTier === 4 && currentStage < 4) {
@@ -205,7 +213,7 @@ function processSimulatedDb(currentDb) {
             }
         }
     } else if (newTier > currentTier) {
-        // Live mic: lock highest reached tier for 10 seconds (and auto-unlock next group if Tier 4 reached)
+        // Live mic: lock highest reached tier for 5 seconds (and auto-unlock next group if Tier 4 reached)
         currentTier = newTier;
         scheduleTierLockOrUnlock(newTier);
     }
@@ -229,30 +237,36 @@ function processSimulatedDb(currentDb) {
 
 // --- AUDIO PROCESSING ---
 async function startListening() {
-    if (isListening) return;
-    
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Always clean up any previous stream/loop so clicking START MIC after a group finishes works 100% reliably
+    if (isListening || mediaStream) {
+        stopListening(true);
     }
-    if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-    }
-    
+
     try {
-        // Disable browser AGC, noise suppression, and echo cancellation so loud crowd roars aren't dampened
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false
-            },
-            video: false
-        });
+        // Request microphone synchronously inside user gesture so mobile Safari/Chrome never drop permission
+        try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false
+                },
+                video: false
+            });
+        } catch (constraintErr) {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        }
+
+        if (!audioContext || audioContext.state === 'closed') {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
         
         analyser = audioContext.createAnalyser();
         microphone = audioContext.createMediaStreamSource(mediaStream);
 
-        analyser.smoothingTimeConstant = 0.4; // Fast response
+        analyser.smoothingTimeConstant = 0.35; // Fast response
         analyser.fftSize = 1024;
 
         microphone.connect(analyser);
@@ -260,6 +274,8 @@ async function startListening() {
         isListening = true;
         micStatus.innerText = '● LISTENING';
         micStatus.classList.add('active');
+        btnStart.innerText = '● MIC ON';
+        btnStart.classList.add('listening');
 
         function processAudio() {
             if (!isListening) return;
@@ -267,16 +283,26 @@ async function startListening() {
             const array = new Uint8Array(analyser.frequencyBinCount);
             analyser.getByteFrequencyData(array);
             
-            // Focus on vocal and crowd energy frequencies (bins 1..120, ~43Hz to ~5.1kHz) using RMS
+            // Measure vocal & crowd frequencies (bins 1..120, ~43Hz to ~5.1kHz)
             const vocalBins = Math.min(120, array.length);
             let sumSquares = 0;
+            let peakBin = 0;
             for (let i = 1; i < vocalBins; i++) {
-                sumSquares += array[i] * array[i];
+                const v = array[i];
+                sumSquares += v * v;
+                if (v > peakBin) peakBin = v;
             }
             const rms = Math.sqrt(sumSquares / (vocalBins - 1));
-            
-            // Map vocal RMS (0-255) into the 40-130 dB show range so full crowd energy reaches Tiers 1-4
-            let currentDb = rms > 2 ? Math.min(130, Math.round(40 + (rms * 0.52))) : 0;
+            const blendedEnergy = (rms * 0.7) + (peakBin * 0.3);
+
+            // Dynamic noise gate increases slightly when set to HARDER so ambient chatter is ignored
+            const noiseGate = Math.max(2, 4 - (difficultyOffset * 0.15));
+            let currentDb = 0;
+
+            if (blendedEnergy > noiseGate) {
+                const baseDb = 42 + (blendedEnergy * 0.48);
+                currentDb = Math.max(40, Math.min(130, Math.round(baseDb + difficultyOffset)));
+            }
             
             if (manualOverride) {
                 currentDb = overrideLevel;
@@ -295,12 +321,19 @@ async function startListening() {
     }
 }
 
-function stopListening() {
-    if (!isListening) return;
-    
-    if (window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
-    if (analyser) analyser.disconnect();
-    if (microphone) microphone.disconnect();
+function stopListening(silent = false) {
+    if (window.animationFrameId) {
+        cancelAnimationFrame(window.animationFrameId);
+        window.animationFrameId = null;
+    }
+    if (analyser) {
+        try { analyser.disconnect(); } catch (e) {}
+        analyser = null;
+    }
+    if (microphone) {
+        try { microphone.disconnect(); } catch (e) {}
+        microphone = null;
+    }
     if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop());
         mediaStream = null;
@@ -309,8 +342,10 @@ function stopListening() {
     isListening = false;
     micStatus.innerText = '● MIC IDLE';
     micStatus.classList.remove('active');
+    btnStart.innerText = 'START MIC';
+    btnStart.classList.remove('listening');
     
-    if (!manualOverride) {
+    if (!silent && !manualOverride) {
         updateUI(0, peakDb, 0, 0);
         sendUpdate(0, peakDb, 0, 0);
     }
@@ -341,9 +376,24 @@ function sendCommand(cmd) {
 }
 
 // --- UI UPDATES ---
+function updateDifficultyUI() {
+    const valDiffEl = document.getElementById('val-difficulty');
+    if (!valDiffEl) return;
+    if (difficultyOffset === 0) {
+        valDiffEl.innerText = 'NORMAL (0 dB)';
+        valDiffEl.style.color = '#D4AF37';
+    } else if (difficultyOffset > 0) {
+        valDiffEl.innerText = `EASIER (+${difficultyOffset} dB BOOST)`;
+        valDiffEl.style.color = '#32d74b';
+    } else {
+        valDiffEl.innerText = `HARDER (${difficultyOffset} dB)`;
+        valDiffEl.style.color = '#ff9f0a';
+    }
+}
+
 function updateTierUI() {
     if (currentStage === 4) {
-        tierStatus.innerText = '★ GRAND FINALE UNLOCKED ★';
+        tierStatus.innerText = '★ GOD IS FAITHFUL ★';
         tierStatus.style.color = '#F59E0B';
         tierStatus.style.borderColor = '#D4AF37';
         tierStatus.style.boxShadow = '0 0 10px rgba(212, 175, 55, 0.4)';
@@ -380,6 +430,9 @@ function updateUI(currentDb, peak, avg, barPercent) {
 // --- CONTROLS ---
 const sliderOverride = document.getElementById('slider-override');
 const btnOverrideOff = document.getElementById('btn-override-off');
+const btnDiffHarder = document.getElementById('btn-diff-harder');
+const btnDiffReset = document.getElementById('btn-diff-reset');
+const btnDiffEasier = document.getElementById('btn-diff-easier');
 
 stageBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -390,7 +443,7 @@ stageBtns.forEach((btn) => {
 
 btnStart.addEventListener('click', startListening);
 
-btnPause.addEventListener('click', stopListening);
+btnPause.addEventListener('click', () => stopListening(false));
 
 btnReset.addEventListener('click', () => {
     peakDb = 0;
@@ -409,6 +462,22 @@ btnReset.addEventListener('click', () => {
     }
     updateUI(0, 0, 0, 0);
     sendCommand('reset');
+});
+
+// Crowd Difficulty / Mic Sensitivity Handlers
+btnDiffHarder.addEventListener('click', () => {
+    difficultyOffset = Math.max(-35, difficultyOffset - 5);
+    updateDifficultyUI();
+});
+
+btnDiffReset.addEventListener('click', () => {
+    difficultyOffset = 0;
+    updateDifficultyUI();
+});
+
+btnDiffEasier.addEventListener('click', () => {
+    difficultyOffset = Math.min(40, difficultyOffset + 5);
+    updateDifficultyUI();
 });
 
 sliderOverride.addEventListener('input', (e) => {
@@ -438,4 +507,5 @@ btnOverrideOff.addEventListener('click', () => {
 });
 
 updateStageUI();
+updateDifficultyUI();
 
