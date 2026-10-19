@@ -12,6 +12,7 @@ const micStatus = document.getElementById('mic-status');
 const remoteStageLabel = document.getElementById('remote-stage-label');
 const remoteStageWord = document.getElementById('remote-stage-word');
 const stageBtns = document.querySelectorAll('.btn-stage');
+const btnFinalWin = document.getElementById('btn-final-win');
 
 const valLevel = document.getElementById('val-level');
 const barLevel = document.getElementById('bar-level');
@@ -29,7 +30,7 @@ const STAGE_INFO = [
     { stage: 1, label: 'GROUP 2 OF 4', word: 'I AM FREE' },
     { stage: 2, label: 'GROUP 3 OF 4', word: 'HE IS RISEN' },
     { stage: 3, label: 'GROUP 4 OF 4', word: 'VICTORY' },
-    { stage: 4, label: '★ GRAND FINALE ★', word: 'NOTHING IS IMPOSSIBLE WITH GOD' }
+    { stage: 4, label: 'FINAL WORD (ALL CROWD)', word: 'NOTHING IS IMPOSSIBLE WITH GOD' }
 ];
 
 // State
@@ -44,6 +45,7 @@ let lastDb = 0;
 
 let currentStage = 0;
 let currentTier = 0;
+let finalWin = false;
 let achievementTimer = null;
 
 const UNLOCK_DURATION_MS = 5000; // 5 seconds lock & unlock
@@ -86,7 +88,9 @@ async function submitPin() {
             pin = inputVal;
             if (data.state && typeof data.state.stage === 'number') {
                 currentStage = data.state.stage;
+                finalWin = Boolean(data.state.finalWin);
                 updateStageUI();
+                updateTierUI();
             }
             authScreen.classList.remove('active');
             controlScreen.classList.add('active');
@@ -116,7 +120,9 @@ let lastSentDb = -1;
 
 function updateStageUI() {
     const info = STAGE_INFO[currentStage] || STAGE_INFO[0];
-    if (remoteStageLabel) remoteStageLabel.innerText = info.label;
+    if (remoteStageLabel) {
+        remoteStageLabel.innerText = finalWin ? '★ FINAL VICTORY ACHIEVED ★' : info.label;
+    }
     if (remoteStageWord) remoteStageWord.innerText = info.word;
 
     stageBtns.forEach((btn, idx) => {
@@ -127,12 +133,36 @@ function updateStageUI() {
             btn.classList.add('active');
         }
     });
+
+    if (btnFinalWin) {
+        btnFinalWin.classList.toggle('active', finalWin);
+    }
+}
+
+function triggerFinalVictoryFromRemote() {
+    currentStage = 4;
+    currentTier = 4;
+    finalWin = true;
+    peakDb = Math.max(peakDb, 125);
+    if (achievementTimer) {
+        clearTimeout(achievementTimer);
+        achievementTimer = null;
+    }
+    updateStageUI();
+    updateUI(Math.max(lastDb, 125), peakDb, 120, 100);
+    if (pin) {
+        socket.emit('command', {
+            pin: pin,
+            command: 'final_win'
+        });
+    }
 }
 
 function advanceOrSetStage(nextStage) {
     const clamped = Math.max(0, Math.min(4, nextStage));
     currentStage = clamped;
     currentTier = 0;
+    finalWin = false;
     peakDb = 0;
     dbHistory = [];
     lastSentDb = -1;
@@ -172,9 +202,9 @@ function scheduleTierLockOrUnlock(tierReached) {
     achievementTimer = setTimeout(() => {
         achievementTimer = null;
         if (tierReached === 4 && currentStage < 4) {
-            // Auto-unlock next group word (or Grand Finale after Group 4) after 5s celebration!
+            // Auto-unlock next group word (or Finale Word after Group 4) after 5s celebration!
             advanceOrSetStage(currentStage + 1);
-        } else {
+        } else if (!finalWin) {
             currentTier = 0;
             updateTierUI();
         }
@@ -200,9 +230,15 @@ function processSimulatedDb(currentDb) {
             break;
         }
     }
+
+    // If on Stage 4 ("NOTHING IS IMPOSSIBLE WITH GOD") and the whole crowd reaches Tier 4 (120 dB), trigger Final Victory!
+    if (currentStage === 4 && newTier === 4 && !finalWin) {
+        triggerFinalVictoryFromRemote();
+        return;
+    }
     
     if (manualOverride) {
-        // Allow moving up and down across all tiers freely for testing; if left at Tier 4 for 5s, auto-unlock next group!
+        // Allow moving up and down across all tiers freely for testing; if left at Tier 4 for 5s on G1-G4, auto-unlock next group!
         if (newTier !== currentTier) {
             currentTier = newTier;
             if (currentTier === 4 && currentStage < 4) {
@@ -219,10 +255,10 @@ function processSimulatedDb(currentDb) {
     }
 
     // Map 40-130 dB to 0-100% for the remote progress bar (matches T1-T4 tick marks accurately)
-    const barPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
+    const barPercent = finalWin ? 100 : Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
     
     // If locked into a tier, send max visual level (100) to the main display while keeping true barPercent on remote
-    const displayVisualLevel = currentTier > 0 ? 100 : barPercent;
+    const displayVisualLevel = (currentTier > 0 || finalWin) ? 100 : barPercent;
 
     updateUI(currentDb, peakDb, avgDb, barPercent);
     
@@ -345,7 +381,7 @@ function stopListening(silent = false) {
     btnStart.innerText = 'START MIC';
     btnStart.classList.remove('listening');
     
-    if (!silent && !manualOverride) {
+    if (!silent && !manualOverride && !finalWin) {
         updateUI(0, peakDb, 0, 0);
         sendUpdate(0, peakDb, 0, 0);
     }
@@ -362,6 +398,7 @@ function sendUpdate(visualLevel, peak, avg, currentDb) {
         peak: peak,
         average: avg,
         stage: currentStage,
+        finalWin: finalWin,
         status: isListening ? 'listening' : 'idle',
         manualOverride: manualOverride
     });
@@ -392,19 +429,19 @@ function updateDifficultyUI() {
 }
 
 function updateTierUI() {
-    if (currentStage === 4) {
-        tierStatus.innerText = '★ GOD IS FAITHFUL ★';
+    if (finalWin) {
+        tierStatus.innerText = '★ FINAL VICTORY ACHIEVED ★';
         tierStatus.style.color = '#F59E0B';
-        tierStatus.style.borderColor = '#D4AF37';
-        tierStatus.style.boxShadow = '0 0 10px rgba(212, 175, 55, 0.4)';
-        barLevel.style.backgroundColor = '#D4AF37';
+        tierStatus.style.borderColor = '#FDE68A';
+        tierStatus.style.boxShadow = '0 0 14px rgba(245, 158, 11, 0.6)';
+        barLevel.style.backgroundColor = '#F59E0B';
         return;
     }
 
     if (currentTier === 0) {
-        tierStatus.innerText = 'NORMAL';
-        tierStatus.style.color = '#888';
-        tierStatus.style.borderColor = '#333';
+        tierStatus.innerText = currentStage === 4 ? 'FINAL WORD · SHOUT FOR VICTORY' : 'NORMAL';
+        tierStatus.style.color = currentStage === 4 ? '#D4AF37' : '#888';
+        tierStatus.style.borderColor = currentStage === 4 ? '#996515' : '#333';
         tierStatus.style.boxShadow = 'none';
         barLevel.style.backgroundColor = '#fff';
     } else {
@@ -441,6 +478,12 @@ stageBtns.forEach((btn) => {
     });
 });
 
+if (btnFinalWin) {
+    btnFinalWin.addEventListener('click', () => {
+        triggerFinalVictoryFromRemote();
+    });
+}
+
 btnStart.addEventListener('click', startListening);
 
 btnPause.addEventListener('click', () => stopListening(false));
@@ -450,6 +493,7 @@ btnReset.addEventListener('click', () => {
     dbHistory = [];
     currentStage = 0;
     currentTier = 0;
+    finalWin = false;
     lastSentDb = -1;
     manualOverride = false;
     overrideLevel = 40;
@@ -492,6 +536,7 @@ btnOverrideOff.addEventListener('click', () => {
     manualOverride = false;
     overrideLevel = 40;
     currentTier = 0;
+    finalWin = false;
     lastSentDb = -1;
     if (achievementTimer) {
         clearTimeout(achievementTimer);

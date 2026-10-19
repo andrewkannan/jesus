@@ -14,7 +14,8 @@ let globalState = {
   db: 0,
   peak: 0,
   average: 0,
-  stage: 0, // 0: Group 1, 1: Group 2, 2: Group 3, 3: Group 4, 4: Finale
+  stage: 0, // 0: Group 1, 1: Group 2, 2: Group 3, 3: Group 4, 4: Finale Word ("NOTHING IS IMPOSSIBLE WITH GOD")
+  finalWin: false,
   status: 'idle',
   manualOverride: false,
   reset: false,
@@ -66,6 +67,7 @@ io.on('connection', (socket) => {
       peak: typeof data.peak === 'number' ? data.peak : globalState.peak,
       average: typeof data.average === 'number' ? data.average : globalState.average,
       stage: nextStage,
+      finalWin: typeof data.finalWin === 'boolean' ? data.finalWin : globalState.finalWin,
       status: data.status || globalState.status,
       manualOverride: typeof data.manualOverride === 'boolean' ? data.manualOverride : globalState.manualOverride,
       reset: false,
@@ -87,6 +89,7 @@ io.on('connection', (socket) => {
            peak: 0,
            average: 0,
            stage: 0,
+           finalWin: false,
            status: 'idle',
            manualOverride: false,
            reset: true,
@@ -103,9 +106,23 @@ io.on('connection', (socket) => {
            peak: 0,
            average: 0,
            stage: targetStage,
+           finalWin: false,
            manualOverride: false,
            reset: false,
            stageChanged: true,
+           updatedAt: Date.now()
+         };
+         io.emit('state_update', globalState);
+     } else if (data.command === 'final_win') {
+         globalState = {
+           ...globalState,
+           stage: 4,
+           level: 100,
+           db: Math.max(globalState.db, 125),
+           peak: Math.max(globalState.peak, 125),
+           finalWin: true,
+           reset: false,
+           stageChanged: false,
            updatedAt: Date.now()
          };
          io.emit('state_update', globalState);

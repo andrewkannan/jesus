@@ -366,8 +366,8 @@ body, html {
     filter: drop-shadow(0 20px 42px rgba(180, 83, 9, 0.32));
 }
 
-/* Tier 4 (120+ dB) & Finale: Crown of Glory — Liquid Sunlit Gold & Ivory Brilliance */
-.tier-4, .finale-glory {
+/* Tier 4 (120+ dB): Crown of Glory — Liquid Sunlit Gold & Ivory Brilliance */
+.tier-4 {
     background: linear-gradient(115deg, #78350F 0%, #B45309 18%, #D4AF37 38%, #FFFBEB 50%, #D4AF37 64%, #996515 84%, #78350F 100%);
     background-size: 260% auto;
     -webkit-background-clip: text;
@@ -375,6 +375,33 @@ body, html {
     -webkit-text-fill-color: transparent;
     animation: shimmerSweep 1.2s ease-in-out infinite;
     filter: drop-shadow(0 22px 48px rgba(212, 175, 55, 0.42));
+}
+
+/* Final Victory Climax (Whole Crowd Finale Unlocked) */
+.final-victory-glory {
+    background: linear-gradient(110deg, #78350F 0%, #B45309 15%, #D4AF37 32%, #FFFFFF 48%, #FDE68A 56%, #D4AF37 72%, #996515 88%, #78350F 100%);
+    background-size: 240% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerSweep 1.1s linear infinite;
+    filter: drop-shadow(0 24px 55px rgba(212, 175, 55, 0.55));
+}
+
+body.final-victory-mode {
+    background: radial-gradient(circle at 50% 45%, #FFFDF9 0%, #FBF3DB 52%, #EAD7A7 100%);
+}
+
+body.final-victory-mode .stage-frame {
+    border: 2px solid rgba(212, 175, 55, 0.65);
+    box-shadow: inset 0 0 120px rgba(212, 175, 55, 0.22), 0 0 40px rgba(212, 175, 55, 0.18);
+}
+
+#tier-badge.victory-badge {
+    background: linear-gradient(135deg, #996515 0%, #D4AF37 50%, #B45309 100%);
+    color: #FFFDF9 !important;
+    border-color: #FDE68A !important;
+    box-shadow: 0 10px 30px rgba(180, 83, 9, 0.32);
 }
 
 /* Bottom Bar: Stage Meter & Peak Praise Scoreboard */

@@ -64,6 +64,7 @@ const TIER_THRESHOLDS = [
 
 let currentStage = 0;
 let currentTier = 0;
+let isFinalVictory = false;
 let achievementTimer = null;
 let tier4StartTime = 0;
 let displayAudioCtx = null;
@@ -76,13 +77,14 @@ let currentDb = 0;
 let lastUpdate = Date.now();
 let isManualOverride = false;
 
-// --- INTERACTIVE CANVAS FX (Sunbeams, Shockwaves, Golden Particles) ---
+// --- INTERACTIVE CANVAS FX (Sunbeams, Shockwaves, Golden Particles, Victory Confetti) ---
 const canvas = document.getElementById('fx-canvas');
 const ctx = canvas.getContext('2d');
 let cw = window.innerWidth;
 let ch = window.innerHeight;
 let shockwaves = [];
 let particles = [];
+let confetti = [];
 let sunbeamAngle = 0;
 let lastAmbientWave = 0;
 
@@ -122,6 +124,39 @@ function spawnShockwave(intensity = 1, count = 1) {
     }
 }
 
+function spawnVictoryConfettiBurst() {
+    confetti = [];
+    const colors = ['#D4AF37', '#F59E0B', '#B45309', '#FDE68A', '#996515', '#FFFBEB'];
+    for (let i = 0; i < 120; i++) {
+        confetti.push({
+            x: Math.random() * cw,
+            y: -20 - Math.random() * ch * 0.8,
+            w: 6 + Math.random() * 8,
+            h: 10 + Math.random() * 14,
+            vy: 1.8 + Math.random() * 3.2,
+            vx: (Math.random() - 0.5) * 2.2,
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 0.14,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            alpha: 0.75 + Math.random() * 0.25
+        });
+    }
+}
+
+function activateFinalVictory() {
+    if (isFinalVictory) return;
+    isFinalVictory = true;
+    currentTier = 4;
+    clearTierLock();
+    document.body.classList.add('final-victory-mode');
+    tierBadgeEl.classList.add('victory-badge');
+    eyebrowEl.textContent = '★ ALL PRAISE & GLORY // VICTORY IN JESUS ★';
+    spawnShockwave(2.2, 5);
+    spawnVictoryConfettiBurst();
+    playFinalVictorySymphony();
+    updateTierBadge(4, Math.max(currentDb, 125));
+}
+
 // Enable Audio on click
 audioOverlay.addEventListener('click', () => {
     displayAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -148,7 +183,15 @@ function applyStageUI(stageIdx, animate = true) {
     currentStage = safeIdx;
     const s = STAGES[safeIdx];
 
-    eyebrowEl.textContent = s.eyebrow;
+    if (!isFinalVictory) {
+        document.body.classList.remove('final-victory-mode');
+        tierBadgeEl.classList.remove('victory-badge');
+        confetti = [];
+    }
+
+    eyebrowEl.textContent = isFinalVictory
+        ? '★ ALL PRAISE & GLORY // VICTORY IN JESUS ★'
+        : s.eyebrow;
     textEl.setAttribute('data-stage', String(safeIdx));
     textEl.innerHTML = s.word.replace('\n', '<br>');
 
@@ -159,27 +202,21 @@ function applyStageUI(stageIdx, animate = true) {
         spawnShockwave(1.5, 3);
     }
 
-    if (safeIdx === 4) {
-        tierBadgeEl.textContent = '★ GOD IS FAITHFUL ★';
-        tierBadgeEl.style.color = '#996515';
-        tierBadgeEl.style.borderColor = 'rgba(212, 175, 55, 0.5)';
-        unlockContainer.classList.add('hidden');
-    } else {
-        updateTierBadge(currentTier, currentDb);
-    }
+    updateTierBadge(currentTier, currentDb);
 }
 
 function updateTierBadge(tier, db) {
     meterTags.forEach((tag, idx) => {
-        if (tag) tag.classList.toggle('active', tier >= idx + 1);
+        if (tag) tag.classList.toggle('active', isFinalVictory || tier >= idx + 1);
     });
 
-    if (currentStage === 4) {
-        tierBadgeEl.textContent = '★ GOD IS FAITHFUL ★';
-        tierBadgeEl.style.color = '#996515';
-        tierBadgeEl.style.borderColor = 'rgba(212, 175, 55, 0.55)';
+    if (isFinalVictory) {
+        tierBadgeEl.textContent = '★ GOD IS FAITHFUL · FINAL VICTORY ★';
+        tierBadgeEl.classList.add('victory-badge');
         return;
     }
+
+    tierBadgeEl.classList.remove('victory-badge');
 
     if (tier > 0) {
         const t = TIER_THRESHOLDS.find(x => x.tier === tier);
@@ -220,11 +257,15 @@ function clearTierLock() {
 socket.on('state_update', (state) => {
     if (state.reset) {
         clearTierLock();
+        isFinalVictory = false;
         currentTier = 0;
         targetLevel = 0;
         currentLevel = 0;
         currentDb = 0;
         isManualOverride = false;
+        document.body.classList.remove('final-victory-mode');
+        tierBadgeEl.classList.remove('victory-badge');
+        confetti = [];
         if (scorePeakEl) scorePeakEl.textContent = '0 dB';
         if (scoreLiveEl) scoreLiveEl.textContent = '0 dB';
         if (stageMeterFill) stageMeterFill.style.width = '0%';
@@ -237,12 +278,23 @@ socket.on('state_update', (state) => {
     if (typeof state.stage === 'number' && state.stage !== currentStage) {
         clearTierLock();
         currentTier = 0;
+        isFinalVictory = Boolean(state.finalWin);
         applyStageUI(state.stage, true);
-        if (state.stage === 4) {
-            playFinaleFanfare();
-        } else {
-            playStageTransitionChime();
+        playStageTransitionChime();
+    } else if (state.stageChanged && !state.finalWin) {
+        // Explicit re-selection of current stage resets finalWin so crowd can shout again
+        clearTierLock();
+        currentTier = 0;
+        isFinalVictory = false;
+        applyStageUI(currentStage, true);
+    }
+
+    // Check if Final Win was triggered directly from Remote button
+    if (state.finalWin && !isFinalVictory) {
+        if (currentStage !== 4) {
+            applyStageUI(4, true);
         }
+        activateFinalVictory();
     }
 
     const wasManualOverride = isManualOverride;
@@ -253,9 +305,16 @@ socket.on('state_update', (state) => {
     if (scorePeakEl) scorePeakEl.textContent = `${state.peak || 0} dB`;
     if (scoreLiveEl) scoreLiveEl.textContent = `${currentDb} dB`;
 
-    const barPercent = Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
+    const barPercent = isFinalVictory
+        ? 100
+        : Math.max(0, Math.min(100, ((currentDb - 40) / 90) * 100));
     if (stageMeterFill) stageMeterFill.style.width = `${barPercent}%`;
     
+    if (isFinalVictory) {
+        lastUpdate = Date.now();
+        return;
+    }
+
     // Determine Tier
     let newTier = 0;
     for (const t of TIER_THRESHOLDS) {
@@ -263,6 +322,13 @@ socket.on('state_update', (state) => {
             newTier = t.tier;
             break;
         }
+    }
+
+    // If we are on Stage 4 ("NOTHING IS IMPOSSIBLE WITH GOD") and the whole crowd hits Tier 4 (120 dB), unleash Final Victory!
+    if (currentStage === 4 && newTier === 4) {
+        activateFinalVictory();
+        lastUpdate = Date.now();
+        return;
     }
 
     if (isManualOverride) {
@@ -370,35 +436,52 @@ function playStageTransitionChime() {
     });
 }
 
-function playFinaleFanfare() {
+function playFinalVictorySymphony() {
     if (!audioEnabled || !displayAudioCtx) return;
     if (displayAudioCtx.state === 'suspended') displayAudioCtx.resume();
     const t = displayAudioCtx.currentTime;
-    const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
-    notes.forEach((freq, idx) => {
+
+    // Deep Sanctuary Sub Drop
+    const subOsc = displayAudioCtx.createOscillator();
+    const subGain = displayAudioCtx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(87.31, t); // F2 -> C1
+    subOsc.frequency.exponentialRampToValueAtTime(32.70, t + 2.5);
+    subGain.gain.setValueAtTime(0, t);
+    subGain.gain.linearRampToValueAtTime(0.75, t + 0.08);
+    subGain.gain.exponentialRampToValueAtTime(0.001, t + 4.5);
+    subOsc.connect(subGain);
+    subGain.connect(displayAudioCtx.destination);
+    subOsc.start(t);
+    subOsc.stop(t + 4.8);
+
+    // Majestic Ascending Cathedral Fanfare + Shimmering Harp Arpeggio
+    const chord = [261.63, 329.63, 392.00, 493.88, 523.25, 659.25, 783.99, 1046.50, 1318.51];
+    chord.forEach((freq, idx) => {
         const osc = displayAudioCtx.createOscillator();
         const gain = displayAudioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, t + idx * 0.09);
-        gain.gain.setValueAtTime(0, t + idx * 0.09);
-        gain.gain.linearRampToValueAtTime(0.14, t + idx * 0.09 + 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 5.5);
+        osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+        const startAt = t + idx * 0.07;
+        osc.frequency.setValueAtTime(freq, startAt);
+        gain.gain.setValueAtTime(0, startAt);
+        gain.gain.linearRampToValueAtTime(0.14, startAt + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + 6.5);
         osc.connect(gain);
         gain.connect(displayAudioCtx.destination);
-        osc.start(t + idx * 0.09);
-        osc.stop(t + 5.8);
+        osc.start(startAt);
+        osc.stop(startAt + 6.8);
     });
 }
 
 // --- 60FPS RENDER LOOP ---
 function render() {
     const now = Date.now();
-    if (!isManualOverride && now - lastUpdate > 2000) {
+    if (!isManualOverride && !isFinalVictory && now - lastUpdate > 2000) {
         targetLevel = 0;
     }
 
     currentLevel += (targetLevel - currentLevel) * 0.35;
-    const visualLevel = (currentTier > 0 || currentStage === 4) ? 100 : currentLevel;
+    const visualLevel = (currentTier > 0 || isFinalVictory) ? 100 : currentLevel;
     const nLevel = Math.max(0, Math.min(100, visualLevel)) / 100;
 
     // Update 5-second Tier 4 unlock progress bar if active
@@ -408,41 +491,41 @@ function render() {
         unlockFill.style.width = `${pct}%`;
     }
 
-    renderCanvasFX(nLevel, currentTier, currentStage, now);
-    applyTypographyEffect(nLevel, currentTier, currentStage);
+    renderCanvasFX(nLevel, currentTier, isFinalVictory, now);
+    applyTypographyEffect(nLevel, currentTier, isFinalVictory);
 
     requestAnimationFrame(render);
 }
 
-function renderCanvasFX(nLevel, tier, stage, now) {
+function renderCanvasFX(nLevel, tier, victoryActive, now) {
     ctx.clearRect(0, 0, cw, ch);
     const cx = cw / 2;
     const cy = ch / 2;
 
-    // 1. Warm Volumetric Morning Sunbeams (Visible on high energy, Tiers 1-4, or Finale)
-    const beamIntensity = stage === 4 ? 0.22 : (tier > 0 ? 0.08 + tier * 0.045 : nLevel * 0.08);
+    // 1. Warm Volumetric Morning Sunbeams
+    const beamIntensity = victoryActive ? 0.32 : (tier > 0 ? 0.08 + tier * 0.045 : nLevel * 0.08);
     if (beamIntensity > 0.01) {
-        sunbeamAngle += 0.0015 + (tier * 0.0008);
-        const rayCount = 12;
+        sunbeamAngle += 0.0018 + (victoryActive ? 0.0025 : tier * 0.0008);
+        const rayCount = victoryActive ? 16 : 12;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(sunbeamAngle);
 
-        const maxRadius = Math.max(cw, ch) * 0.85;
+        const maxRadius = Math.max(cw, ch) * 0.9;
         for (let i = 0; i < rayCount; i++) {
             const angle = (i / rayCount) * Math.PI * 2;
             ctx.save();
             ctx.rotate(angle);
             const grad = ctx.createLinearGradient(0, 0, maxRadius, 0);
             grad.addColorStop(0, `rgba(212, 175, 55, ${beamIntensity})`);
-            grad.addColorStop(0.6, `rgba(247, 231, 180, ${beamIntensity * 0.4})`);
+            grad.addColorStop(0.6, `rgba(247, 231, 180, ${beamIntensity * 0.45})`);
             grad.addColorStop(1, 'rgba(252, 249, 244, 0)');
 
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(maxRadius, -maxRadius * 0.09);
-            ctx.lineTo(maxRadius, maxRadius * 0.09);
+            ctx.lineTo(maxRadius, -maxRadius * 0.085);
+            ctx.lineTo(maxRadius, maxRadius * 0.085);
             ctx.closePath();
             ctx.fill();
             ctx.restore();
@@ -451,8 +534,9 @@ function renderCanvasFX(nLevel, tier, stage, now) {
     }
 
     // 2. Ambient & Tier Acoustic Shockwave Rings
-    if ((nLevel > 0.25 || tier > 0 || stage === 4) && now - lastAmbientWave > (tier >= 3 ? 450 : 900)) {
-        spawnShockwave(tier > 0 ? tier * 0.35 : nLevel * 0.5, 1);
+    const waveInterval = victoryActive ? 380 : (tier >= 3 ? 450 : 900);
+    if ((nLevel > 0.25 || tier > 0 || victoryActive) && now - lastAmbientWave > waveInterval) {
+        spawnShockwave(victoryActive ? 1.6 : (tier > 0 ? tier * 0.35 : nLevel * 0.5), 1);
         lastAmbientWave = now;
     }
 
@@ -477,8 +561,8 @@ function renderCanvasFX(nLevel, tier, stage, now) {
     }
 
     // 3. Rising Golden Light Motes
-    const speedMult = stage === 4 ? 2.4 : (1 + nLevel * 1.8 + tier * 0.7);
-    const alphaMult = stage === 4 ? 1.4 : (0.4 + nLevel * 0.8 + tier * 0.25);
+    const speedMult = victoryActive ? 2.8 : (1 + nLevel * 1.8 + tier * 0.7);
+    const alphaMult = victoryActive ? 1.6 : (0.4 + nLevel * 0.8 + tier * 0.25);
 
     for (const p of particles) {
         p.y += p.vy * speedMult;
@@ -493,19 +577,41 @@ function renderCanvasFX(nLevel, tier, stage, now) {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${p.hue}, ${Math.min(0.85, p.alpha * alphaMult)})`;
+        ctx.fillStyle = `rgba(${p.hue}, ${Math.min(0.9, p.alpha * alphaMult)})`;
         ctx.fill();
+    }
+
+    // 4. Final Victory Golden Confetti Shower
+    if (victoryActive && confetti.length > 0) {
+        for (const c of confetti) {
+            c.y += c.vy;
+            c.x += c.vx + Math.sin(c.y * 0.02) * 0.6;
+            c.rot += c.vRot;
+
+            if (c.y > ch + 20) {
+                c.y = -20;
+                c.x = Math.random() * cw;
+            }
+
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            ctx.rotate(c.rot);
+            ctx.scale(Math.cos(c.rot * 1.5), 1);
+            ctx.fillStyle = c.color;
+            ctx.globalAlpha = c.alpha;
+            ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+            ctx.restore();
+        }
     }
 }
 
-function applyTypographyEffect(nLevel, tier, stage) {
-    // Keep wordtransition class if currently animating in
+function applyTypographyEffect(nLevel, tier, victoryActive) {
     const isTransitioning = textEl.classList.contains('word-transition');
     textEl.className = isTransitioning ? 'word-transition' : '';
 
-    if (stage === 4) {
-        textEl.classList.add('finale-glory');
-        const breath = 1 + Math.sin(Date.now() * 0.0025) * 0.025;
+    if (victoryActive) {
+        textEl.classList.add('final-victory-glory');
+        const breath = 1.08 + Math.sin(Date.now() * 0.004) * 0.035;
         textEl.style.transform = `scale(${breath})`;
         textEl.style.opacity = '1';
         return;
