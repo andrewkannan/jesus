@@ -14,9 +14,11 @@ let globalState = {
   db: 0,
   peak: 0,
   average: 0,
+  stage: 0, // 0: Group 1, 1: Group 2, 2: Group 3, 3: Group 4, 4: Finale
   status: 'idle',
   manualOverride: false,
   reset: false,
+  stageChanged: false,
   updatedAt: Date.now()
 };
 
@@ -30,7 +32,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/api/auth', (req, res) => {
   const pin = (req.body && req.body.pin ? String(req.body.pin) : '').trim().toUpperCase();
   if (pin === REMOTE_PIN) {
-    res.json({ success: true });
+    res.json({ success: true, state: globalState });
   } else {
     res.status(401).json({ success: false, message: 'Invalid PIN' });
   }
@@ -53,6 +55,9 @@ io.on('connection', (socket) => {
         return;
     }
 
+    const nextStage = typeof data.stage === 'number' ? Math.max(0, Math.min(4, data.stage)) : globalState.stage;
+    const stageChanged = nextStage !== globalState.stage;
+
     // Update global state
     globalState = {
       ...globalState,
@@ -60,9 +65,11 @@ io.on('connection', (socket) => {
       db: typeof data.db === 'number' ? data.db : globalState.db,
       peak: typeof data.peak === 'number' ? data.peak : globalState.peak,
       average: typeof data.average === 'number' ? data.average : globalState.average,
+      stage: nextStage,
       status: data.status || globalState.status,
       manualOverride: typeof data.manualOverride === 'boolean' ? data.manualOverride : globalState.manualOverride,
       reset: false,
+      stageChanged: stageChanged,
       updatedAt: Date.now()
     };
     
@@ -79,9 +86,26 @@ io.on('connection', (socket) => {
            db: 0,
            peak: 0,
            average: 0,
+           stage: 0,
            status: 'idle',
            manualOverride: false,
            reset: true,
+           stageChanged: true,
+           updatedAt: Date.now()
+         };
+         io.emit('state_update', globalState);
+     } else if (data.command === 'set_stage' && typeof data.stage === 'number') {
+         const targetStage = Math.max(0, Math.min(4, data.stage));
+         globalState = {
+           ...globalState,
+           level: 0,
+           db: 0,
+           peak: 0,
+           average: 0,
+           stage: targetStage,
+           manualOverride: false,
+           reset: false,
+           stageChanged: true,
            updatedAt: Date.now()
          };
          io.emit('state_update', globalState);

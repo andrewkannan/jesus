@@ -9,6 +9,10 @@ const btnSubmitPin = document.getElementById('btn-submit-pin');
 
 const remoteStatus = document.getElementById('remote-status');
 const micStatus = document.getElementById('mic-status');
+const remoteStageLabel = document.getElementById('remote-stage-label');
+const remoteStageWord = document.getElementById('remote-stage-word');
+const stageBtns = document.querySelectorAll('.btn-stage');
+
 const valLevel = document.getElementById('val-level');
 const barLevel = document.getElementById('bar-level');
 const tierStatus = document.getElementById('tier-status');
@@ -20,6 +24,14 @@ const btnPause = document.getElementById('btn-pause');
 const btnReset = document.getElementById('btn-reset');
 const valOverride = document.getElementById('val-override');
 
+const STAGE_INFO = [
+    { stage: 0, label: 'GROUP 1 OF 4', word: 'JESUS' },
+    { stage: 1, label: 'GROUP 2 OF 4', word: 'I AM FREE' },
+    { stage: 2, label: 'GROUP 3 OF 4', word: 'HE IS RISEN' },
+    { stage: 3, label: 'GROUP 4 OF 4', word: 'VICTORY' },
+    { stage: 4, label: '★ GRAND FINALE ★', word: 'NOTHING IS IMPOSSIBLE WITH GOD' }
+];
+
 // State
 let pin = '';
 let isListening = false;
@@ -29,14 +41,15 @@ let peakDb = 0;
 let dbHistory = [];
 let lastDb = 0;
 
+let currentStage = 0;
 let currentTier = 0;
 let achievementTimer = null;
 
 const TIER_THRESHOLDS = [
-    { db: 120, tier: 4, name: "TIER 4: OMEGA CRIMSON", color: "#ff0033" }, 
-    { db: 115, tier: 3, name: "TIER 3: NEON AMETHYST", color: "#cc00ff" }, 
-    { db: 110, tier: 2, name: "TIER 2: HOLY FIRE", color: "#ff8c00" }, 
-    { db: 105, tier: 1, name: "TIER 1: ELECTRIC BLUE", color: "#00aaff" }  
+    { db: 120, tier: 4, name: "TIER 4: CROWN OF GLORY (UNLOCKING)", color: "#F59E0B" }, 
+    { db: 115, tier: 3, name: "TIER 3: ROYAL AMBER", color: "#D97706" }, 
+    { db: 110, tier: 2, name: "TIER 2: RADIANT GOLD", color: "#D4AF37" }, 
+    { db: 105, tier: 1, name: "TIER 1: MORNING DAWN", color: "#C5A059" }  
 ];
 
 // Audio Context
@@ -68,6 +81,10 @@ async function submitPin() {
         
         if (data.success) {
             pin = inputVal;
+            if (data.state && typeof data.state.stage === 'number') {
+                currentStage = data.state.stage;
+                updateStageUI();
+            }
             authScreen.classList.remove('active');
             controlScreen.classList.add('active');
             pinInput.blur();
@@ -94,6 +111,68 @@ socket.on('disconnect', () => {
 let lastSendTime = 0;
 let lastSentDb = -1;
 
+function updateStageUI() {
+    const info = STAGE_INFO[currentStage] || STAGE_INFO[0];
+    if (remoteStageLabel) remoteStageLabel.innerText = info.label;
+    if (remoteStageWord) remoteStageWord.innerText = info.word;
+
+    stageBtns.forEach((btn, idx) => {
+        btn.classList.remove('active', 'completed');
+        if (idx < currentStage) {
+            btn.classList.add('completed');
+        } else if (idx === currentStage) {
+            btn.classList.add('active');
+        }
+    });
+}
+
+function advanceOrSetStage(nextStage) {
+    const clamped = Math.max(0, Math.min(4, nextStage));
+    currentStage = clamped;
+    currentTier = 0;
+    peakDb = 0;
+    dbHistory = [];
+    lastSentDb = -1;
+
+    if (achievementTimer) {
+        clearTimeout(achievementTimer);
+        achievementTimer = null;
+    }
+
+    // If manual override was used to test unlocking Tier 4, reset override back to OFF for the newly unlocked word
+    if (manualOverride) {
+        manualOverride = false;
+        overrideLevel = 40;
+        valOverride.innerText = 'OFF';
+        valOverride.style.color = '#ff453a';
+        sliderOverride.value = 40;
+    }
+
+    updateStageUI();
+    updateUI(0, 0, 0, 0);
+    if (pin) {
+        socket.emit('command', {
+            pin: pin,
+            command: 'set_stage',
+            stage: currentStage
+        });
+    }
+}
+
+function scheduleTierLockOrUnlock(tierReached) {
+    if (achievementTimer) clearTimeout(achievementTimer);
+    achievementTimer = setTimeout(() => {
+        achievementTimer = null;
+        if (tierReached === 4 && currentStage < 4) {
+            // Auto-unlock next group word (or Grand Finale after Group 4) after 10s celebration!
+            advanceOrSetStage(currentStage + 1);
+        } else {
+            currentTier = 0;
+            updateTierUI();
+        }
+    }, 10000);
+}
+
 // --- CENTRAL DATA PROCESSOR ---
 function processSimulatedDb(currentDb) {
     lastDb = currentDb;
@@ -115,21 +194,20 @@ function processSimulatedDb(currentDb) {
     }
     
     if (manualOverride) {
-        // When testing/controlling with manual override slider, allow moving up and down across all tiers freely
-        currentTier = newTier;
-        if (achievementTimer) {
-            clearTimeout(achievementTimer);
-            achievementTimer = null;
+        // Allow moving up and down across all tiers freely for testing; if left at Tier 4 for 10s, auto-unlock next group!
+        if (newTier !== currentTier) {
+            currentTier = newTier;
+            if (currentTier === 4 && currentStage < 4) {
+                scheduleTierLockOrUnlock(4);
+            } else if (achievementTimer) {
+                clearTimeout(achievementTimer);
+                achievementTimer = null;
+            }
         }
     } else if (newTier > currentTier) {
-        // Live mic: lock highest reached tier for 10 seconds
+        // Live mic: lock highest reached tier for 10 seconds (and auto-unlock next group if Tier 4 reached)
         currentTier = newTier;
-        if (achievementTimer) clearTimeout(achievementTimer);
-        achievementTimer = setTimeout(() => {
-            currentTier = 0;
-            achievementTimer = null;
-            updateTierUI();
-        }, 10000);
+        scheduleTierLockOrUnlock(newTier);
     }
 
     // Map 40-130 dB to 0-100% for the remote progress bar (matches T1-T4 tick marks accurately)
@@ -247,7 +325,8 @@ function sendUpdate(visualLevel, peak, avg, currentDb) {
         level: visualLevel, 
         db: currentDb,
         peak: peak,
-        average: avg, 
+        average: avg,
+        stage: currentStage,
         status: isListening ? 'listening' : 'idle',
         manualOverride: manualOverride
     });
@@ -263,6 +342,15 @@ function sendCommand(cmd) {
 
 // --- UI UPDATES ---
 function updateTierUI() {
+    if (currentStage === 4) {
+        tierStatus.innerText = '★ GRAND FINALE UNLOCKED ★';
+        tierStatus.style.color = '#F59E0B';
+        tierStatus.style.borderColor = '#D4AF37';
+        tierStatus.style.boxShadow = '0 0 10px rgba(212, 175, 55, 0.4)';
+        barLevel.style.backgroundColor = '#D4AF37';
+        return;
+    }
+
     if (currentTier === 0) {
         tierStatus.innerText = 'NORMAL';
         tierStatus.style.color = '#888';
@@ -280,6 +368,7 @@ function updateTierUI() {
 }
 
 function updateUI(currentDb, peak, avg, barPercent) {
+    updateStageUI();
     updateTierUI();
     
     valLevel.innerText = `${currentDb} dB`;
@@ -292,6 +381,13 @@ function updateUI(currentDb, peak, avg, barPercent) {
 const sliderOverride = document.getElementById('slider-override');
 const btnOverrideOff = document.getElementById('btn-override-off');
 
+stageBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const targetStage = parseInt(btn.getAttribute('data-stage'), 10);
+        advanceOrSetStage(targetStage);
+    });
+});
+
 btnStart.addEventListener('click', startListening);
 
 btnPause.addEventListener('click', stopListening);
@@ -299,6 +395,7 @@ btnPause.addEventListener('click', stopListening);
 btnReset.addEventListener('click', () => {
     peakDb = 0;
     dbHistory = [];
+    currentStage = 0;
     currentTier = 0;
     lastSentDb = -1;
     manualOverride = false;
@@ -339,3 +436,6 @@ btnOverrideOff.addEventListener('click', () => {
         sendUpdate(0, peakDb, 0, 0);
     }
 });
+
+updateStageUI();
+

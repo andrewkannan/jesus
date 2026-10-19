@@ -26,10 +26,25 @@
     <!-- CONTROL SCREEN -->
     <div id="control-screen" class="screen">
         <div class="header">
-            <h2>JESUS</h2>
-            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
+            <h2>SUNDAY MORNING REMOTE</h2>
+            <div class="status-row">
                 <div class="status" id="remote-status">● DISCONNECTED</div>
                 <div class="status" id="mic-status">● MIC IDLE</div>
+            </div>
+        </div>
+
+        <!-- 4 GROUPS + FINALE SELECTOR -->
+        <div class="stage-card">
+            <div class="stage-header-row">
+                <span class="stage-label" id="remote-stage-label">GROUP 1 OF 4</span>
+                <span class="stage-word" id="remote-stage-word">JESUS</span>
+            </div>
+            <div class="stage-btn-row">
+                <button class="btn-stage active" data-stage="0">G1</button>
+                <button class="btn-stage" data-stage="1">G2</button>
+                <button class="btn-stage" data-stage="2">G3</button>
+                <button class="btn-stage" data-stage="3">G4</button>
+                <button class="btn-stage btn-finale" data-stage="4">★ FINALE</button>
             </div>
         </div>
         
@@ -40,7 +55,7 @@
             
             <div class="tier-box" id="tier-status">NORMAL</div>
             
-            <div style="padding: 20px 10px 10px 10px;">
+            <div class="progress-wrap">
                 <div class="progress-bar">
                     <div class="progress-fill" id="bar-level" style="width: 0%"></div>
                     <div class="bar-marker" style="left: 72.2%;"><span>T1</span></div>
@@ -69,7 +84,7 @@
         <div class="controls-row">
             <button id="btn-start" class="btn btn-primary">START MIC</button>
             <button id="btn-pause" class="btn">PAUSE</button>
-            <button id="btn-reset" class="btn btn-danger">RESET</button>
+            <button id="btn-reset" class="btn btn-danger">RESET ALL</button>
         </div>
         
         <hr>
@@ -79,10 +94,10 @@
                 MANUAL OVERRIDE 
                 <span class="override-val" id="val-override">OFF</span>
             </h3>
-            <div class="override-control" style="margin-top: 15px;">
+            <div class="override-control" style="margin-top: 10px;">
                 <input type="range" id="slider-override" min="40" max="130" value="40" step="1" style="width: 100%;">
             </div>
-            <button id="btn-override-off" class="btn btn-danger" style="margin-top:15px; width:100%; padding:8px 0; font-size:12px;">DISABLE OVERRIDE</button>
+            <button id="btn-override-off" class="btn btn-danger" style="margin-top:10px; width:100%; padding:8px 0; font-size:12px;">DISABLE OVERRIDE</button>
         </div>
     </div>
 

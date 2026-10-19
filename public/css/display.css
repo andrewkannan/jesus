@@ -1,128 +1,518 @@
+:root {
+    --bg-center: #FCF9F4;
+    --bg-edge: #EBE3D5;
+    --ink-primary: #1C1917;
+    --ink-secondary: #575047;
+    --ink-muted: #8C8275;
+    --gold-light: #F7E7B4;
+    --gold-mid: #D4AF37;
+    --gold-deep: #996515;
+    --amber-rich: #B45309;
+    --border-subtle: rgba(153, 101, 21, 0.16);
+    --surface-glass: rgba(255, 252, 247, 0.78);
+    --word-tracking: 0.14em;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 body, html {
     margin: 0;
     padding: 0;
     width: 100vw;
     height: 100vh;
-    background-color: #000;
-    color: #fff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at 50% 45%, var(--bg-center) 0%, #F4EFE6 55%, var(--bg-edge) 100%);
+    color: var(--ink-primary);
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow: hidden;
+    position: relative;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Interactive FX Canvas */
+#fx-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Subtle Architectural Stage Frame */
+.stage-frame {
+    position: absolute;
+    inset: 22px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    z-index: 2;
+    pointer-events: none;
+    box-shadow: inset 0 0 80px rgba(212, 175, 55, 0.05);
+}
+
+/* Top Header Bar */
+#top-bar {
+    position: absolute;
+    top: 44px;
+    left: 52px;
+    right: 52px;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: space-between;
+    z-index: 20;
 }
 
 #debug-info {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    font-size: 12px;
-    color: #555;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink-muted);
+    letter-spacing: 0.18em;
+    padding: 8px 14px;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
 }
 
-#connection-status {
-    color: #888;
+#connection-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #DC2626;
+    transition: background 0.3s ease;
 }
 
-#connection-status.connected {
-    color: #0f0;
+#debug-info.connected #connection-dot {
+    background: #16A34A;
 }
 
+#debug-info.connected #connection-status {
+    color: var(--ink-secondary);
+}
+
+/* 4-Group + Finale Stepper */
+#stage-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(28, 25, 23, 0.04);
+}
+
+.step-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--ink-muted);
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.step-pill .step-num {
+    font-weight: 800;
+    opacity: 0.65;
+}
+
+.step-pill.completed {
+    color: var(--gold-deep);
+    background: rgba(212, 175, 55, 0.14);
+}
+
+.step-pill.active {
+    color: #FFFDF9;
+    background: linear-gradient(135deg, #292524 0%, #44403C 100%);
+    box-shadow: 0 4px 12px rgba(28, 25, 23, 0.15);
+}
+
+.step-pill.finale-pill.active {
+    background: linear-gradient(135deg, #996515 0%, #D4AF37 50%, #B45309 100%);
+    color: #FFFDF9;
+    box-shadow: 0 4px 16px rgba(180, 83, 9, 0.3);
+}
+
+.step-divider {
+    width: 12px;
+    height: 1px;
+    background: var(--border-subtle);
+}
+
+#live-db-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+}
+
+.live-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    color: var(--ink-muted);
+}
+
+#score-live {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ink-primary);
+    font-variant-numeric: tabular-nums;
+    min-width: 52px;
+    text-align: right;
+}
+
+/* Main Stage Center Lockup - True Optical & Geometric Alignment */
 #main-container {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 120px 6vw 130px;
+    z-index: 10;
+}
+
+#stage-eyebrow {
+    font-size: clamp(11px, 1.1vw, 15px);
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    padding-left: 0.35em; /* Optical compensation for letter-spacing */
+    color: var(--gold-deep);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    transition: all 0.4s ease;
+}
+
+#word-wrapper {
     width: 100%;
-    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
+    min-height: 28vh;
+    position: relative;
 }
 
+/* Perfectly centered word with letter-spacing compensation */
 #jesus-text {
-    font-family: 'Montserrat', sans-serif; /* Sleek, powerful, modern */
-    /* Alternatively, for a more epic historical cinematic look, use: font-family: 'Cinzel', serif; */
-    font-size: 18vw;
+    font-family: 'Montserrat', sans-serif;
     font-weight: 900;
-    letter-spacing: 0.15em;
+    font-size: clamp(4.2rem, 14vw, 15.5rem);
+    letter-spacing: var(--word-tracking);
+    padding-left: var(--word-tracking); /* Offsets trailing letter-spacing so word is 100% centered */
     margin: 0;
-    padding: 0;
+    line-height: 1.04;
     text-align: center;
     text-transform: uppercase;
-    transition: color 0.1s;
+    color: var(--ink-primary);
+    transform-origin: center center;
+    will-change: transform, filter;
+    transition: opacity 0.35s ease;
+    filter: drop-shadow(0 14px 32px rgba(28, 25, 23, 0.08));
+}
+
+/* Dynamic sizing per stage phrase length so nothing ever clips or wraps awkwardly */
+#jesus-text[data-stage="0"] {
+    --word-tracking: 0.14em;
+    font-size: clamp(4.5rem, 15vw, 16rem);
+}
+#jesus-text[data-stage="1"] {
+    --word-tracking: 0.10em;
+    font-size: clamp(3.5rem, 11vw, 12.2rem);
+}
+#jesus-text[data-stage="2"] {
+    --word-tracking: 0.08em;
+    font-size: clamp(3.1rem, 9.6vw, 10.6rem);
+}
+#jesus-text[data-stage="3"] {
+    --word-tracking: 0.12em;
+    font-size: clamp(4rem, 13vw, 14rem);
+}
+#jesus-text[data-stage="4"] {
+    --word-tracking: 0.07em;
+    font-family: 'Cinzel', 'Montserrat', serif;
+    font-weight: 800;
+    font-size: clamp(2.2rem, 5.8vw, 6.6rem);
+    line-height: 1.18;
+    max-width: 88vw;
+}
+
+/* Stage Transition Reveal */
+#jesus-text.word-transition {
+    animation: wordReveal 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes wordReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(24px) scale(0.94);
+        filter: blur(6px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+/* Tier Status Pill below Word */
+#tier-badge {
+    margin-top: 24px;
+    padding: 8px 22px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    padding-left: calc(22px + 0.24em);
+    text-transform: uppercase;
+    color: var(--ink-secondary);
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+}
+
+/* Unlock Progress Container (10s Tier 4 Linger & Unlock) */
+#unlock-container {
+    margin-top: 18px;
+    width: min(440px, 76vw);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#unlock-container.hidden {
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+}
+
+#unlock-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    color: var(--amber-rich);
+    margin-bottom: 8px;
+}
+
+.unlock-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(153, 101, 21, 0.14);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+#unlock-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #996515, #D4AF37, #F59E0B);
+    border-radius: 999px;
+    transition: width 0.1s linear;
+}
+
+/* === SLEEK ARCHITECTURAL TIER FINISHES (NO NEON GLOW) === */
+
+@keyframes shimmerSweep {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Tier 1 (105 dB): Morning Dawn — Warm Bronze & Champagne Platinum Shimmer */
+.tier-1 {
+    background: linear-gradient(120deg, #292524 0%, #785A28 30%, #C5A059 50%, #575047 75%, #1C1917 100%);
+    background-size: 220% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerSweep 3s ease-in-out infinite;
+    filter: drop-shadow(0 16px 28px rgba(153, 101, 21, 0.18));
+}
+
+/* Tier 2 (110 dB): Radiant Gold — Brushed 24K Metallic Gold */
+.tier-2 {
+    background: linear-gradient(120deg, #714B13 0%, #B8860B 25%, #E6C65B 50%, #996515 75%, #5C3A0B 100%);
+    background-size: 240% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerSweep 2.2s ease-in-out infinite;
+    filter: drop-shadow(0 18px 34px rgba(180, 130, 25, 0.26));
+}
+
+/* Tier 3 (115 dB): Royal Amber — Sunlit Imperial Gold & Warm Amber */
+.tier-3 {
+    background: linear-gradient(120deg, #7C2D12 0%, #B45309 22%, #D4AF37 48%, #FDE68A 60%, #92400E 85%, #78350F 100%);
+    background-size: 250% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerSweep 1.6s ease-in-out infinite;
+    filter: drop-shadow(0 20px 42px rgba(180, 83, 9, 0.32));
+}
+
+/* Tier 4 (120+ dB) & Finale: Crown of Glory — Liquid Sunlit Gold & Ivory Brilliance */
+.tier-4, .finale-glory {
+    background: linear-gradient(115deg, #78350F 0%, #B45309 18%, #D4AF37 38%, #FFFBEB 50%, #D4AF37 64%, #996515 84%, #78350F 100%);
+    background-size: 260% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerSweep 1.2s ease-in-out infinite;
+    filter: drop-shadow(0 22px 48px rgba(212, 175, 55, 0.42));
+}
+
+/* Bottom Bar: Stage Meter & Peak Praise Scoreboard */
+#bottom-bar {
+    position: absolute;
+    bottom: 42px;
+    left: 52px;
+    right: 52px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+    z-index: 20;
+}
+
+#stage-meter-wrap {
+    flex: 1;
+    max-width: 680px;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 14px 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(28, 25, 23, 0.04);
+}
+
+.meter-tiers {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.meter-tag {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: var(--ink-muted);
+    transition: color 0.25s ease, transform 0.25s ease;
+}
+
+.meter-tag.active {
+    color: var(--amber-rich);
+    transform: translateY(-1px);
+}
+
+.stage-meter-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(28, 25, 23, 0.08);
+    border-radius: 999px;
+    position: relative;
+    overflow: hidden;
+}
+
+#stage-meter-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #575047 0%, #996515 55%, #D4AF37 80%, #B45309 100%);
+    transition: width 0.08s ease-out;
+}
+
+.stage-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(255, 252, 247, 0.85);
+    z-index: 2;
 }
 
 #scoreboard {
-    position: absolute;
-    bottom: 40px;
-    right: 40px;
     text-align: right;
-    font-family: 'Montserrat', sans-serif;
-    z-index: 100;
-    opacity: 0.8;
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 12px 22px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(28, 25, 23, 0.04);
 }
 
 .score-label {
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 4px;
-    color: #888;
-    margin-bottom: 5px;
+    letter-spacing: 0.28em;
+    color: var(--ink-muted);
+    margin-bottom: 4px;
 }
 
 .score-value {
-    font-size: 48px;
+    font-size: 36px;
     font-weight: 900;
-    color: #fff;
-    text-shadow: 0 0 20px rgba(255,255,255,0.5);
-    letter-spacing: 2px;
+    color: var(--ink-primary);
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
 }
 
+/* Audio Unlock Overlay */
 #audio-overlay {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.9);
-    color: white;
+    inset: 0;
+    background: rgba(252, 249, 244, 0.94);
+    backdrop-filter: blur(16px);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    font-size: 2vw;
-    font-family: 'Montserrat', sans-serif;
-    letter-spacing: 0.2em;
     cursor: pointer;
 }
 
-/* === TIER ANIMATIONS === */
-
-@keyframes anim-tier-1 {
-    0% { text-shadow: 0 0 20px #fff, 0 0 40px #00ffff, 0 0 80px #0000ff, 0 0 100px rgba(0, 100, 255, 0.8); }
-    50% { text-shadow: 0 0 30px #fff, 0 0 60px #00ffff, 0 0 100px #0000ff, 0 0 130px rgba(0, 150, 255, 1); }
-    100% { text-shadow: 0 0 20px #fff, 0 0 40px #00ffff, 0 0 80px #0000ff, 0 0 100px rgba(0, 100, 255, 0.8); }
+.overlay-card {
+    text-align: center;
+    padding: 48px 56px;
+    border-radius: 20px;
+    background: #FFFFFF;
+    border: 1px solid rgba(153, 101, 21, 0.22);
+    box-shadow: 0 24px 60px rgba(28, 25, 23, 0.08);
 }
 
-@keyframes anim-tier-2 {
-    0% { text-shadow: 0 -10px 30px #fff, 0 -20px 50px #ffe600, 0 -40px 80px #ff8c00, 0 0 100px rgba(255, 140, 0, 0.8); }
-    50% { text-shadow: 0 -15px 40px #fff, 0 -30px 70px #ffea00, 0 -60px 100px #ff3300, 0 0 130px rgba(255, 100, 0, 1); }
-    100% { text-shadow: 0 -10px 30px #fff, 0 -20px 50px #ffe600, 0 -40px 80px #ff8c00, 0 0 100px rgba(255, 140, 0, 0.8); }
+.overlay-eyebrow {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.3em;
+    color: var(--gold-deep);
+    margin-bottom: 14px;
 }
 
-@keyframes anim-tier-3 {
-    0% { text-shadow: 0 0 30px #fff, 0 0 60px #ff00ff, 0 0 100px #aa00ff, 0 0 150px rgba(170, 0, 255, 0.8); }
-    50% { text-shadow: 0 0 50px #fff, 0 0 90px #ff66ff, 0 0 140px #cc00ff, 0 0 200px rgba(204, 0, 255, 1); }
-    100% { text-shadow: 0 0 30px #fff, 0 0 60px #ff00ff, 0 0 100px #aa00ff, 0 0 150px rgba(170, 0, 255, 0.8); }
+.overlay-title {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    color: var(--ink-primary);
+    margin-bottom: 10px;
 }
 
-@keyframes anim-tier-4 {
-    0% { text-shadow: 0 0 40px #fff, 0 -20px 80px #ff0000, 0 20px 100px #880000, 0 0 150px rgba(255, 0, 0, 0.9); color: #fff; }
-    25% { text-shadow: 0 0 50px #ffea00, 20px 0 100px #ff3300, -20px 0 120px #aa0000, 0 0 180px rgba(255, 50, 0, 1); color: #fff5f5; }
-    50% { text-shadow: 0 0 60px #fff, 0 30px 120px #ff0000, 0 -30px 140px #550000, 0 0 200px rgba(255, 0, 0, 1); color: #fff; }
-    75% { text-shadow: 0 0 50px #ffea00, -20px 0 100px #ff3300, 20px 0 120px #aa0000, 0 0 180px rgba(255, 50, 0, 1); color: #fff5f5; }
-    100% { text-shadow: 0 0 40px #fff, 0 -20px 80px #ff0000, 0 20px 100px #880000, 0 0 150px rgba(255, 0, 0, 0.9); color: #fff; }
+.overlay-sub {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
 }
-
-.tier-1 { animation: anim-tier-1 1s ease-in-out infinite; color: #fff; }
-.tier-2 { animation: anim-tier-2 1.5s ease-in-out infinite; color: #fff; }
-.tier-3 { animation: anim-tier-3 1.2s ease-in-out infinite; color: #fff; }
-.tier-4 { animation: anim-tier-4 0.35s ease-in-out infinite; }
 

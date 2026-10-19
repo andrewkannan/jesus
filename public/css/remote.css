@@ -60,25 +60,27 @@ body, html {
 /* Control Screen */
 hr {
     border: none;
-    border-top: 1px solid #333;
-    margin: 15px 0;
+    border-top: 1px solid #262629;
+    margin: 10px 0;
 }
 .header {
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .header h2 {
     margin: 0;
-    font-size: 20px;
+    font-size: 16px;
     letter-spacing: 2px;
+    color: #D4AF37;
 }
-.header p {
-    margin: 5px 0 10px;
-    color: #888;
-    font-size: 12px;
+.status-row {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 6px;
 }
 .status {
-    font-size: 12px;
+    font-size: 11px;
     color: #ff453a;
     font-weight: bold;
 }
@@ -86,19 +88,77 @@ hr {
     color: #32d74b;
 }
 
+/* Stage / Group Selector Card */
+.stage-card {
+    background: #141416;
+    border: 1px solid #2c2c2e;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+}
+.stage-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.stage-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #8e8e93;
+}
+.stage-word {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: #F7E7B4;
+}
+.stage-btn-row {
+    display: flex;
+    gap: 6px;
+}
+.btn-stage {
+    flex: 1;
+    background: #242426;
+    color: #a1a1a6;
+    border: 1px solid #3a3a3c;
+    border-radius: 6px;
+    padding: 7px 0;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-stage.completed {
+    border-color: rgba(212, 175, 55, 0.5);
+    color: #D4AF37;
+}
+.btn-stage.active {
+    background: #D4AF37;
+    color: #111;
+    border-color: #F7E7B4;
+}
+.btn-stage.btn-finale {
+    flex: 1.5;
+}
+
 .section {
     text-align: center;
 }
 h3 {
-    font-size: 12px;
+    font-size: 11px;
     color: #888;
     letter-spacing: 1px;
-    margin: 0 0 10px;
+    margin: 0 0 6px;
 }
 .big-value {
-    font-size: 52px;
+    font-size: 42px;
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
+}
+.progress-wrap {
+    padding: 16px 8px 6px 8px;
 }
 .progress-bar {
     width: 100%;
@@ -116,32 +176,32 @@ h3 {
 }
 .bar-marker {
     position: absolute;
-    top: -20px;
-    height: 32px;
+    top: -18px;
+    height: 30px;
     border-left: 1px solid rgba(255,255,255,0.3);
     z-index: 10;
 }
 .bar-marker span {
     position: absolute;
-    top: -15px;
+    top: -14px;
     left: -10px;
     font-size: 10px;
     color: #888;
 }
 
 .tier-box {
-    margin: 5px auto 10px;
-    padding: 8px;
+    margin: 4px auto 6px;
+    padding: 7px;
     border-radius: 8px;
     background: #1c1c1e;
     color: #888;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
     letter-spacing: 1px;
     text-transform: uppercase;
     transition: all 0.3s;
     border: 1px solid #333;
-    max-width: 300px;
+    max-width: 320px;
 }
 
 .stats-row {

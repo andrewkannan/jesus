@@ -3,27 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JESUS</title>
-    <!-- Google Fonts for Cinematic Look -->
+    <title>SUNDAY MORNING EXPERIENCE</title>
+    <!-- Google Fonts for Sleek Morning Church Editorial & Architectural Look -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/display.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <div id="audio-overlay">CLICK ANYWHERE TO ENABLE SOUND</div>
+    <div id="audio-overlay">
+        <div class="overlay-card">
+            <div class="overlay-eyebrow">SUNDAY MORNING LIVE DISPLAY</div>
+            <div class="overlay-title">CLICK ANYWHERE TO BEGIN</div>
+            <div class="overlay-sub">Enables stage sound effects &amp; live audio synchronization</div>
+        </div>
+    </div>
 
-    <div id="debug-info">REMOTE<br><span id="connection-status">● DISCONNECTED</span></div>
-    
-    <div id="scoreboard">
-        <div class="score-label">MAX ENERGY</div>
-        <div class="score-value" id="score-peak">0 dB</div>
-    </div>
-    
-    <div id="main-container">
-        <h1 id="jesus-text">JESUS</h1>
-    </div>
+    <!-- Interactive Background Canvas (Sunbeams, Acoustic Shockwaves, Golden Particles) -->
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- Subtle Architectural Frame -->
+    <div class="stage-frame"></div>
+
+    <!-- Top Header: Connection & 4-Group Progression Stepper -->
+    <header id="top-bar">
+        <div id="debug-info">
+            <span id="connection-dot"></span>
+            <span id="connection-status">DISCONNECTED</span>
+        </div>
+
+        <nav id="stage-stepper" aria-label="Group Progression">
+            <div class="step-pill active" data-step="0"><span class="step-num">01</span><span class="step-name">GROUP 1</span></div>
+            <div class="step-divider"></div>
+            <div class="step-pill" data-step="1"><span class="step-num">02</span><span class="step-name">GROUP 2</span></div>
+            <div class="step-divider"></div>
+            <div class="step-pill" data-step="2"><span class="step-num">03</span><span class="step-name">GROUP 3</span></div>
+            <div class="step-divider"></div>
+            <div class="step-pill" data-step="3"><span class="step-num">04</span><span class="step-name">GROUP 4</span></div>
+            <div class="step-divider"></div>
+            <div class="step-pill finale-pill" data-step="4"><span class="step-num">★</span><span class="step-name">FINALE</span></div>
+        </nav>
+
+        <div id="live-db-pill">
+            <span class="live-label">LIVE</span>
+            <span id="score-live">0 dB</span>
+        </div>
+    </header>
+
+    <!-- Center Stage Lockup (Optically & Geometrically Centered) -->
+    <main id="main-container">
+        <div id="stage-eyebrow">GROUP 01 // LIFT YOUR VOICE</div>
+        <div id="word-wrapper">
+            <h1 id="jesus-text" data-stage="0">JESUS</h1>
+        </div>
+        <div id="tier-badge">READY FOR PRAISE</div>
+
+        <!-- Unlock Countdown Bar (Appears when Tier 4 is reached) -->
+        <div id="unlock-container" class="hidden">
+            <div id="unlock-label">CROWN OF GLORY REACHED — UNLOCKING NEXT WORD</div>
+            <div class="unlock-track">
+                <div id="unlock-fill"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Bar: Sleek Architectural Tier Meter & Max Energy Scoreboard -->
+    <footer id="bottom-bar">
+        <div id="stage-meter-wrap">
+            <div class="meter-tiers">
+                <span class="meter-tag" id="m-tier-1">105 dB · DAWN</span>
+                <span class="meter-tag" id="m-tier-2">110 dB · GOLD</span>
+                <span class="meter-tag" id="m-tier-3">115 dB · AMBER</span>
+                <span class="meter-tag" id="m-tier-4">120 dB · UNLOCK</span>
+            </div>
+            <div class="stage-meter-track">
+                <div id="stage-meter-fill"></div>
+                <div class="stage-tick" style="left: 72.22%"></div>
+                <div class="stage-tick" style="left: 77.78%"></div>
+                <div class="stage-tick" style="left: 83.33%"></div>
+                <div class="stage-tick" style="left: 88.89%"></div>
+            </div>
+        </div>
+
+        <div id="scoreboard">
+            <div class="score-label">PEAK PRAISE</div>
+            <div class="score-value" id="score-peak">0 dB</div>
+        </div>
+    </footer>
 
     <script src="/js/display.js"></script>
 </body>
