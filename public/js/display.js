@@ -11,7 +11,9 @@ const stageMeterFill = document.getElementById('stage-meter-fill');
 const unlockContainer = document.getElementById('unlock-container');
 const unlockLabel = document.getElementById('unlock-label');
 const unlockFill = document.getElementById('unlock-fill');
-const audioOverlay = document.getElementById('audio-overlay');
+const stageCurtainEl = document.getElementById('stage-curtain');
+const curtainConnDot = document.getElementById('curtain-conn-dot');
+const curtainConnText = document.getElementById('curtain-conn-text');
 const meterTags = [
     document.getElementById('m-tier-1'),
     document.getElementById('m-tier-2'),
@@ -65,10 +67,11 @@ const TIER_THRESHOLDS = [
 let currentStage = 0;
 let currentTier = 0;
 let isFinalVictory = false;
+let isCurtainOpen = false;
+let curtainSpillTimer = null;
 let achievementTimer = null;
 let tier4StartTime = 0;
 let displayAudioCtx = null;
-let audioEnabled = false;
 
 // State
 let targetLevel = 0;
@@ -157,6 +160,57 @@ function setWordEffectClass(cls) {
     lastAppliedClass = cls;
 }
 
+function ensureAudioContext() {
+    try {
+        if (!displayAudioCtx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) displayAudioCtx = new AudioCtx();
+        }
+        if (displayAudioCtx && displayAudioCtx.state === 'suspended') {
+            displayAudioCtx.resume().catch(() => {});
+        }
+        return Boolean(displayAudioCtx && displayAudioCtx.state === 'running');
+    } catch (e) {
+        return false;
+    }
+}
+
+// Passively unlock audio if the display window ever receives any gesture during setup
+['click', 'keydown', 'touchstart'].forEach((evt) => {
+    window.addEventListener(evt, () => ensureAudioContext(), { once: true, passive: true });
+});
+
+function setCurtainState(open, animate = true) {
+    if (!stageCurtainEl) return;
+    const nextOpen = Boolean(open);
+    if (nextOpen === isCurtainOpen) return;
+    isCurtainOpen = nextOpen;
+
+    if (curtainSpillTimer) {
+        clearTimeout(curtainSpillTimer);
+        curtainSpillTimer = null;
+    }
+
+    if (isCurtainOpen) {
+        stageCurtainEl.classList.remove('curtain-closed');
+        stageCurtainEl.classList.add('curtain-open', 'curtain-opening');
+        stageCurtainEl.setAttribute('aria-hidden', 'true');
+        curtainSpillTimer = setTimeout(() => {
+            stageCurtainEl.classList.remove('curtain-opening');
+        }, 1600);
+
+        if (animate) {
+            spawnShockwave(1.3, 3);
+            applyStageUI(currentStage, true);
+            playCurtainOpenSound();
+        }
+    } else {
+        stageCurtainEl.classList.remove('curtain-open', 'curtain-opening');
+        stageCurtainEl.classList.add('curtain-closed');
+        stageCurtainEl.setAttribute('aria-hidden', 'false');
+    }
+}
+
 function activateFinalVictory() {
     if (isFinalVictory) return;
     isFinalVictory = true;
@@ -172,23 +226,19 @@ function activateFinalVictory() {
     updateTierBadge(4, Math.max(currentDb, 125));
 }
 
-// Enable Audio on click
-audioOverlay.addEventListener('click', () => {
-    displayAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (displayAudioCtx.state === 'suspended') displayAudioCtx.resume();
-    audioEnabled = true;
-    audioOverlay.style.display = 'none';
-});
-
 // Connection handling
 socket.on('connect', () => {
     statusEl.textContent = 'CONNECTED';
     debugInfoEl.classList.add('connected');
+    if (curtainConnDot) curtainConnDot.classList.add('connected');
+    if (curtainConnText) curtainConnText.textContent = 'STAGE READY · AWAITING REMOTE CURTAIN';
 });
 
 socket.on('disconnect', () => {
     statusEl.textContent = 'DISCONNECTED';
     debugInfoEl.classList.remove('connected');
+    if (curtainConnDot) curtainConnDot.classList.remove('connected');
+    if (curtainConnText) curtainConnText.textContent = 'CONNECTING TO STAGE SERVER...';
     targetLevel = 0;
     isManualOverride = false;
 });
@@ -295,13 +345,20 @@ socket.on('state_update', (state) => {
         if (scorePeakEl) scorePeakEl.textContent = '0 dB';
         if (scoreLiveEl) scoreLiveEl.textContent = '0 dB';
         if (stageMeterFill) stageMeterFill.style.width = '0%';
-        applyStageUI(0, true);
+        applyStageUI(0, false);
+        setCurtainState(Boolean(state.curtainOpen), true);
         lastUpdate = Date.now();
         return;
     }
 
+    // Sync Stage Curtain Open/Close state from Remote
+    if (typeof state.curtainOpen === 'boolean' && state.curtainOpen !== isCurtainOpen) {
+        setCurtainState(state.curtainOpen, true);
+    }
+
     // Check if Final Win was triggered directly from Remote button
     if (state.finalWin && !isFinalVictory) {
+        setCurtainState(true, false);
         if (currentStage !== 4) {
             currentStage = 4;
             textEl.setAttribute('data-stage', '4');
@@ -397,9 +454,28 @@ socket.on('state_update', (state) => {
 });
 
 // --- WARM ARCHITECTURAL WORSHIP SOUND SYNTHESIZER ---
+function playCurtainOpenSound() {
+    if (!ensureAudioContext()) return;
+    const t = displayAudioCtx.currentTime;
+    const notes = [261.63, 329.63, 392.00, 493.88, 587.33, 783.99];
+    notes.forEach((freq, idx) => {
+        const osc = displayAudioCtx.createOscillator();
+        const gain = displayAudioCtx.createGain();
+        osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+        const startAt = t + idx * 0.09;
+        osc.frequency.setValueAtTime(freq, startAt);
+        gain.gain.setValueAtTime(0, startAt);
+        gain.gain.linearRampToValueAtTime(0.11, startAt + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + 2.8);
+        osc.connect(gain);
+        gain.connect(displayAudioCtx.destination);
+        osc.start(startAt);
+        osc.stop(startAt + 3.0);
+    });
+}
+
 function playAchievementSound(tier) {
-    if (!audioEnabled || !displayAudioCtx) return;
-    if (displayAudioCtx.state === 'suspended') displayAudioCtx.resume();
+    if (!ensureAudioContext()) return;
 
     const t = displayAudioCtx.currentTime;
 
@@ -446,8 +522,7 @@ function playAchievementSound(tier) {
 }
 
 function playStageTransitionChime() {
-    if (!audioEnabled || !displayAudioCtx) return;
-    if (displayAudioCtx.state === 'suspended') displayAudioCtx.resume();
+    if (!ensureAudioContext()) return;
     const t = displayAudioCtx.currentTime;
     const notes = [392.00, 493.88, 587.33, 783.99];
     notes.forEach((freq, idx) => {
@@ -466,8 +541,7 @@ function playStageTransitionChime() {
 }
 
 function playFinalVictorySymphony() {
-    if (!audioEnabled || !displayAudioCtx) return;
-    if (displayAudioCtx.state === 'suspended') displayAudioCtx.resume();
+    if (!ensureAudioContext()) return;
     const t = displayAudioCtx.currentTime;
 
     // Deep Sanctuary Sub Drop

@@ -12,11 +12,42 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <div id="audio-overlay">
-        <div class="overlay-card">
-            <div class="overlay-eyebrow">SUNDAY MORNING LIVE DISPLAY</div>
-            <div class="overlay-title">CLICK ANYWHERE TO BEGIN</div>
-            <div class="overlay-sub">Enables stage sound effects &amp; live audio synchronization</div>
+    <!-- Grand Sanctuary Stage Curtain (Controlled remotely from /remote) -->
+    <div id="stage-curtain" class="curtain-closed" aria-hidden="false">
+        <div class="curtain-light-spill"></div>
+
+        <!-- Left Drapery Wing -->
+        <div class="curtain-panel curtain-left">
+            <div class="curtain-pleats"></div>
+            <div class="curtain-gold-hem"></div>
+            <div class="curtain-edge-trim"></div>
+        </div>
+
+        <!-- Right Drapery Wing -->
+        <div class="curtain-panel curtain-right">
+            <div class="curtain-pleats"></div>
+            <div class="curtain-gold-hem"></div>
+            <div class="curtain-edge-trim"></div>
+        </div>
+
+        <!-- Upper Proscenium Valance / Pelmet -->
+        <div class="curtain-valance">
+            <div class="valance-cornice"></div>
+            <div class="valance-drape"></div>
+            <div class="valance-fringe"></div>
+        </div>
+
+        <!-- Center Sanctuary Crest on Closed Curtain -->
+        <div class="curtain-emblem">
+            <div class="emblem-inner">
+                <div class="emblem-eyebrow">✦ SUNDAY MORNING EXPERIENCE ✦</div>
+                <div class="emblem-title">GOD IS FAITHFUL</div>
+                <div class="emblem-divider"></div>
+                <div class="emblem-sub">
+                    <span id="curtain-conn-dot"></span>
+                    <span id="curtain-conn-text">STAGE STANDBY · AWAITING CURTAIN REVEAL</span>
+                </div>
+            </div>
         </div>
     </div>
 

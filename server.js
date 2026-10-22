@@ -16,6 +16,7 @@ let globalState = {
   average: 0,
   stage: 0, // 0: Group 1, 1: Group 2, 2: Group 3, 3: Group 4, 4: Finale Word ("NOTHING IS IMPOSSIBLE WITH GOD")
   finalWin: false,
+  curtainOpen: false,
   status: 'idle',
   manualOverride: false,
   reset: false,
@@ -68,6 +69,7 @@ io.on('connection', (socket) => {
       average: typeof data.average === 'number' ? data.average : globalState.average,
       stage: nextStage,
       finalWin: typeof data.finalWin === 'boolean' ? data.finalWin : globalState.finalWin,
+      curtainOpen: typeof data.curtainOpen === 'boolean' ? data.curtainOpen : globalState.curtainOpen,
       status: data.status || globalState.status,
       manualOverride: typeof data.manualOverride === 'boolean' ? data.manualOverride : globalState.manualOverride,
       reset: false,
@@ -90,10 +92,20 @@ io.on('connection', (socket) => {
            average: 0,
            stage: 0,
            finalWin: false,
+           curtainOpen: false,
            status: 'idle',
            manualOverride: false,
            reset: true,
            stageChanged: true,
+           updatedAt: Date.now()
+         };
+         io.emit('state_update', globalState);
+     } else if (data.command === 'curtain') {
+         globalState = {
+           ...globalState,
+           curtainOpen: Boolean(data.open),
+           reset: false,
+           stageChanged: false,
            updatedAt: Date.now()
          };
          io.emit('state_update', globalState);
@@ -121,6 +133,7 @@ io.on('connection', (socket) => {
            db: Math.max(globalState.db, 125),
            peak: Math.max(globalState.peak, 125),
            finalWin: true,
+           curtainOpen: true,
            reset: false,
            stageChanged: false,
            updatedAt: Date.now()

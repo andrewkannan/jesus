@@ -444,47 +444,294 @@ body.final-victory-mode #bottom-bar {
     font-variant-numeric: tabular-nums;
 }
 
-/* Audio Unlock Overlay */
-#audio-overlay {
+/* === GRAND SANCTUARY STAGE CURTAIN (WARM CHAMPAGNE SILK & 24K GOLD) === */
+#stage-curtain {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* Golden Morning Light Spill behind center curtain seam as it parts */
+.curtain-light-spill {
     position: absolute;
     inset: 0;
-    background: rgba(252, 249, 244, 0.94);
-    backdrop-filter: blur(16px);
+    z-index: 1;
+    background: radial-gradient(
+        ellipse 38% 90% at 50% 50%,
+        rgba(255, 251, 235, 0.95) 0%,
+        rgba(247, 231, 180, 0.65) 32%,
+        rgba(212, 175, 55, 0.18) 62%,
+        rgba(252, 249, 244, 0) 85%
+    );
+    opacity: 0;
+    transition: opacity 0.9s ease;
+}
+
+#stage-curtain.curtain-opening .curtain-light-spill {
+    opacity: 1;
+}
+
+/* Left & Right Curtain Drapery Wings */
+.curtain-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50.8vw;
+    z-index: 2;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition: transform 1.85s cubic-bezier(0.64, 0.04, 0.14, 1);
+}
+
+.curtain-left {
+    left: 0;
+    transform-origin: left top;
+    transform: translate3d(0, 0, 0) scaleX(1);
+    box-shadow: 18px 0 48px rgba(28, 25, 23, 0.18);
+}
+
+.curtain-right {
+    right: 0;
+    transform-origin: right top;
+    transform: translate3d(0, 0, 0) scaleX(1);
+    box-shadow: -18px 0 48px rgba(28, 25, 23, 0.18);
+}
+
+/* Open State: Curtains sweep smoothly into the stage wings with realistic fabric gather */
+#stage-curtain.curtain-open .curtain-left {
+    transform: translate3d(-103%, 0, 0) scaleX(0.84);
+}
+
+#stage-curtain.curtain-open .curtain-right {
+    transform: translate3d(103%, 0, 0) scaleX(0.84);
+}
+
+/* Multi-layered Champagne-Ivory & Warm Gold Pleated Drapery Texture */
+.curtain-pleats {
+    position: absolute;
+    inset: 0;
+    background-color: #EFE6D5;
+    background-image:
+        /* Subtle top-to-bottom stage lighting falloff */
+        linear-gradient(
+            180deg,
+            rgba(120, 83, 22, 0.16) 0%,
+            rgba(255, 253, 248, 0.25) 18%,
+            rgba(247, 231, 180, 0.08) 65%,
+            rgba(120, 83, 22, 0.22) 100%
+        ),
+        /* Primary deep silk pleats */
+        repeating-linear-gradient(
+            90deg,
+            rgba(120, 82, 24, 0.20) 0px,
+            rgba(166, 124, 46, 0.10) 18px,
+            rgba(255, 253, 249, 0.78) 44px,
+            rgba(247, 231, 180, 0.35) 64px,
+            rgba(140, 96, 28, 0.24) 92px,
+            rgba(120, 82, 24, 0.20) 104px
+        ),
+        /* Secondary wide architectural drape waves */
+        repeating-linear-gradient(
+            90deg,
+            rgba(28, 25, 23, 0.06) 0px,
+            rgba(255, 255, 255, 0.32) 110px,
+            rgba(180, 132, 42, 0.12) 220px
+        );
+}
+
+/* Bottom Architectural 24K Gold Brocade Hem */
+.curtain-gold-hem {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 30px;
+    background: linear-gradient(
+        180deg,
+        #996515 0%,
+        #D4AF37 22%,
+        #F7E7B4 50%,
+        #B8860B 78%,
+        #784B0E 100%
+    );
+    border-top: 2px solid #FFFBEB;
+    box-shadow: 0 -4px 16px rgba(153, 101, 21, 0.22);
+}
+
+/* Inner Leading Edge Metallic Gold Seam Trim */
+.curtain-edge-trim {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: linear-gradient(
+        180deg,
+        #996515 0%,
+        #F7E7B4 25%,
+        #D4AF37 50%,
+        #F7E7B4 75%,
+        #996515 100%
+    );
+}
+
+.curtain-left .curtain-edge-trim {
+    right: 0;
+    box-shadow: -2px 0 10px rgba(153, 101, 21, 0.25);
+}
+
+.curtain-right .curtain-edge-trim {
+    left: 0;
+    box-shadow: 2px 0 10px rgba(153, 101, 21, 0.25);
+}
+
+/* Upper Proscenium Valance / Pelmet */
+.curtain-valance {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 74px;
+    z-index: 3;
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
+    transition: transform 1.45s cubic-bezier(0.64, 0.04, 0.14, 1) 0.22s;
+    box-shadow: 0 12px 32px rgba(28, 25, 23, 0.16);
+}
+
+#stage-curtain.curtain-open .curtain-valance {
+    transform: translate3d(0, -115%, 0);
+}
+
+.valance-cornice {
+    height: 12px;
+    width: 100%;
+    background: linear-gradient(
+        90deg,
+        #784B0E 0%,
+        #D4AF37 20%,
+        #FFFBEB 50%,
+        #D4AF37 80%,
+        #784B0E 100%
+    );
+    border-bottom: 1px solid rgba(120, 75, 14, 0.45);
+}
+
+.valance-drape {
+    height: 52px;
+    width: 100%;
+    background-color: #E8DEC8;
+    background-image:
+        linear-gradient(180deg, rgba(120, 82, 24, 0.25) 0%, rgba(255, 253, 249, 0.35) 55%, rgba(153, 101, 21, 0.28) 100%),
+        repeating-linear-gradient(
+            90deg,
+            rgba(120, 82, 24, 0.24) 0px,
+            rgba(255, 253, 249, 0.75) 36px,
+            rgba(140, 96, 28, 0.26) 72px
+        );
+}
+
+.valance-fringe {
+    height: 10px;
+    width: 100%;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            #996515 0px,
+            #D4AF37 3px,
+            #F7E7B4 5px,
+            #85530E 8px
+        );
+    border-top: 2px solid #FFFBEB;
+    border-bottom: 1px solid #784B0E;
+}
+
+/* Center Sanctuary Crest / Medallion on Closed Curtain */
+.curtain-emblem {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
-    cursor: pointer;
+    padding: 24px;
+    will-change: transform, opacity;
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition: opacity 0.55s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.overlay-card {
+#stage-curtain.curtain-open .curtain-emblem {
+    opacity: 0;
+    transform: translate3d(0, -14px, 0) scale(0.92);
+}
+
+.emblem-inner {
     text-align: center;
-    padding: 48px 56px;
+    padding: 44px 64px;
     border-radius: 20px;
-    background: #FFFFFF;
-    border: 1px solid rgba(153, 101, 21, 0.22);
-    box-shadow: 0 24px 60px rgba(28, 25, 23, 0.08);
+    background: linear-gradient(180deg, #FFFDF9 0%, #F9F3E6 100%);
+    border: 2px solid rgba(212, 175, 55, 0.65);
+    box-shadow:
+        0 24px 64px rgba(28, 25, 23, 0.16),
+        inset 0 0 0 6px #FFFDF9,
+        inset 0 0 0 7px rgba(153, 101, 21, 0.25);
+    max-width: 90vw;
 }
 
-.overlay-eyebrow {
-    font-size: 11px;
+.emblem-eyebrow {
+    font-size: clamp(10px, 1vw, 13px);
     font-weight: 800;
-    letter-spacing: 0.3em;
+    letter-spacing: 0.34em;
+    padding-left: 0.34em;
     color: var(--gold-deep);
     margin-bottom: 14px;
 }
 
-.overlay-title {
-    font-size: 24px;
-    font-weight: 900;
-    letter-spacing: 0.16em;
+.emblem-title {
+    font-family: 'Cinzel', 'Montserrat', serif;
+    font-size: clamp(26px, 3.8vw, 48px);
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    padding-left: 0.18em;
     color: var(--ink-primary);
-    margin-bottom: 10px;
+    margin-bottom: 18px;
 }
 
-.overlay-sub {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ink-muted);
+.emblem-divider {
+    width: 120px;
+    height: 2px;
+    margin: 0 auto 18px;
+    background: linear-gradient(90deg, transparent, #D4AF37, transparent);
 }
+
+.emblem-sub {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--ink-secondary);
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.10);
+    border: 1px solid rgba(153, 101, 21, 0.20);
+}
+
+#curtain-conn-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #DC2626;
+    transition: background 0.3s ease;
+}
+
+#curtain-conn-dot.connected {
+    background: #16A34A;
+}
+
 

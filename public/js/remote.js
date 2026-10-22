@@ -9,6 +9,8 @@ const btnSubmitPin = document.getElementById('btn-submit-pin');
 
 const remoteStatus = document.getElementById('remote-status');
 const micStatus = document.getElementById('mic-status');
+const btnCurtainClose = document.getElementById('btn-curtain-close');
+const btnCurtainOpen = document.getElementById('btn-curtain-open');
 const remoteStageLabel = document.getElementById('remote-stage-label');
 const remoteStageWord = document.getElementById('remote-stage-word');
 const stageBtns = document.querySelectorAll('.btn-stage');
@@ -46,6 +48,7 @@ let lastDb = 0;
 let currentStage = 0;
 let currentTier = 0;
 let finalWin = false;
+let curtainOpen = false;
 let achievementTimer = null;
 
 const UNLOCK_DURATION_MS = 5000; // 5 seconds lock & unlock
@@ -89,6 +92,8 @@ async function submitPin() {
             if (data.state && typeof data.state.stage === 'number') {
                 currentStage = data.state.stage;
                 finalWin = Boolean(data.state.finalWin);
+                curtainOpen = Boolean(data.state.curtainOpen);
+                updateCurtainUI();
                 updateStageUI();
                 updateTierUI();
             }
@@ -118,6 +123,23 @@ socket.on('disconnect', () => {
 let lastSendTime = 0;
 let lastSentDb = -1;
 
+function updateCurtainUI() {
+    if (btnCurtainClose) btnCurtainClose.classList.toggle('active', !curtainOpen);
+    if (btnCurtainOpen) btnCurtainOpen.classList.toggle('active', curtainOpen);
+}
+
+function setCurtainFromRemote(openState) {
+    curtainOpen = Boolean(openState);
+    updateCurtainUI();
+    if (pin) {
+        socket.emit('command', {
+            pin: pin,
+            command: 'curtain',
+            open: curtainOpen
+        });
+    }
+}
+
 function updateStageUI() {
     const info = STAGE_INFO[currentStage] || STAGE_INFO[0];
     if (remoteStageLabel) {
@@ -143,11 +165,13 @@ function triggerFinalVictoryFromRemote() {
     currentStage = 4;
     currentTier = 4;
     finalWin = true;
+    curtainOpen = true;
     peakDb = Math.max(peakDb, 125);
     if (achievementTimer) {
         clearTimeout(achievementTimer);
         achievementTimer = null;
     }
+    updateCurtainUI();
     updateStageUI();
     updateUI(Math.max(lastDb, 125), peakDb, 120, 100);
     if (pin) {
@@ -399,6 +423,7 @@ function sendUpdate(visualLevel, peak, avg, currentDb) {
         average: avg,
         stage: currentStage,
         finalWin: finalWin,
+        curtainOpen: curtainOpen,
         status: isListening ? 'listening' : 'idle',
         manualOverride: manualOverride
     });
@@ -455,6 +480,7 @@ function updateTierUI() {
 }
 
 function updateUI(currentDb, peak, avg, barPercent) {
+    updateCurtainUI();
     updateStageUI();
     updateTierUI();
     
@@ -470,6 +496,18 @@ const btnOverrideOff = document.getElementById('btn-override-off');
 const btnDiffHarder = document.getElementById('btn-diff-harder');
 const btnDiffReset = document.getElementById('btn-diff-reset');
 const btnDiffEasier = document.getElementById('btn-diff-easier');
+
+if (btnCurtainClose) {
+    btnCurtainClose.addEventListener('click', () => {
+        setCurtainFromRemote(false);
+    });
+}
+
+if (btnCurtainOpen) {
+    btnCurtainOpen.addEventListener('click', () => {
+        setCurtainFromRemote(true);
+    });
+}
 
 stageBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -494,6 +532,7 @@ btnReset.addEventListener('click', () => {
     currentStage = 0;
     currentTier = 0;
     finalWin = false;
+    curtainOpen = false;
     lastSentDb = -1;
     manualOverride = false;
     overrideLevel = 40;
@@ -551,6 +590,7 @@ btnOverrideOff.addEventListener('click', () => {
     }
 });
 
+updateCurtainUI();
 updateStageUI();
 updateDifficultyUI();
 
