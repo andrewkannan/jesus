@@ -8,25 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/display.css?v=4">
+    <link rel="stylesheet" href="/css/display.css?v=5">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <!-- Grand Sanctuary Stage Curtain (Controlled remotely from /remote) -->
+    <!-- Live 60fps Sanctuary Stage Curtain (Controlled remotely from /remote) -->
     <div id="stage-curtain" class="curtain-closed" aria-hidden="false">
         <div class="curtain-light-spill"></div>
-
-        <!-- Left Drapery Wing -->
-        <div class="curtain-panel curtain-left">
-            <div class="curtain-pleats"></div>
-            <div class="curtain-edge-trim"></div>
-        </div>
-
-        <!-- Right Drapery Wing -->
-        <div class="curtain-panel curtain-right">
-            <div class="curtain-pleats"></div>
-            <div class="curtain-edge-trim"></div>
-        </div>
+        <canvas id="curtain-canvas"></canvas>
     </div>
 
     <!-- Interactive Background Canvas (Sunbeams, Acoustic Shockwaves, Golden Particles) -->
@@ -89,6 +78,6 @@
         </div>
     </footer>
 
-    <script src="/js/display.js?v=4"></script>
+    <script src="/js/display.js?v=5"></script>
 </body>
 </html>

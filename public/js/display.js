@@ -66,6 +66,9 @@ let currentStage = 0;
 let currentTier = 0;
 let isFinalVictory = false;
 let isCurtainOpen = false;
+let curtainOpenProgress = 0; // 0 = closed, 1 = fully open
+let curtainVelocity = 0;
+let curtainCleared = false;
 let curtainSpillTimer = null;
 let achievementTimer = null;
 let tier4StartTime = 0;
@@ -81,6 +84,8 @@ let isManualOverride = false;
 // --- INTERACTIVE CANVAS FX (Sunbeams, Shockwaves, Golden Particles, Victory Confetti) ---
 const canvas = document.getElementById('fx-canvas');
 const ctx = canvas.getContext('2d');
+const curtainCanvas = document.getElementById('curtain-canvas');
+const curtainCtx = curtainCanvas ? curtainCanvas.getContext('2d') : null;
 let cw = window.innerWidth;
 let ch = window.innerHeight;
 let shockwaves = [];
@@ -96,6 +101,13 @@ function resizeCanvas() {
     canvas.width = cw * dpr;
     canvas.height = ch * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    if (curtainCanvas && curtainCtx) {
+        curtainCanvas.width = cw * dpr;
+        curtainCanvas.height = ch * dpr;
+        curtainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        curtainCleared = false;
+    }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -588,10 +600,163 @@ function render() {
         unlockFill.style.width = `${pct}%`;
     }
 
+    renderLiveCurtain(now, nLevel);
     renderCanvasFX(nLevel, currentTier, isFinalVictory, now);
     applyTypographyEffect(nLevel, currentTier, isFinalVictory, now);
 
     requestAnimationFrame(render);
+}
+
+// --- LIVE 60FPS CLOTH PHYSICS & SPOTLIGHT STAGE CURTAIN ---
+function renderLiveCurtain(now, nLevel) {
+    if (!curtainCtx) return;
+
+    const target = isCurtainOpen ? 1 : 0;
+    const diff = target - curtainOpenProgress;
+
+    // Smooth spring-damped cloth motion
+    curtainVelocity = curtainVelocity * 0.84 + diff * 0.014;
+    curtainOpenProgress += curtainVelocity;
+
+    if (Math.abs(diff) < 0.001 && Math.abs(curtainVelocity) < 0.0005) {
+        curtainOpenProgress = target;
+        curtainVelocity = 0;
+    }
+
+    // Zero CPU/GPU cost once curtain is completely open
+    if (curtainOpenProgress >= 0.999 && isCurtainOpen) {
+        if (!curtainCleared) {
+            curtainCtx.clearRect(0, 0, cw, ch);
+            curtainCleared = true;
+        }
+        return;
+    }
+    curtainCleared = false;
+    curtainCtx.clearRect(0, 0, cw, ch);
+
+    const t = now * 0.001;
+    const pleats = 10;
+    // Slight overlap at center seam when closed so no gap appears during gentle breeze sway
+    const closedWidth = cw * 0.506;
+    // As curtain opens, pull past the screen edges
+    const openProgress = Math.max(0, Math.min(1, curtainOpenProgress));
+    // Smooth ease-in-out curve for the top track pull
+    const easedOpen = openProgress < 0.5
+        ? 2 * openProgress * openProgress
+        : 1 - Math.pow(-2 * openProgress + 2, 2) / 2;
+
+    // Sweeping warm stage spotlights across the closed/opening curtain
+    const spot1X = cw * (0.5 + Math.sin(t * 0.55) * 0.36);
+    const spot2X = cw * (0.5 + Math.cos(t * 0.38) * 0.42);
+
+    // Draw both Left (-1) and Right (+1) drapery wings
+    for (let side = -1; side <= 1; side += 2) {
+        const isLeft = side === -1;
+        const anchorX = isLeft ? -16 : cw + 16;
+
+        // Top track pulls faster than mid/bottom, creating a realistic theater tie-back swag curve
+        const topSpan = closedWidth * (1 - easedOpen * 1.06);
+        const midLag = Math.sin(openProgress * Math.PI) * (cw * 0.075);
+        const botLag = Math.sin(openProgress * Math.PI) * (cw * 0.13);
+
+        const midSpan = Math.max(0, topSpan - midLag);
+        const botSpan = Math.max(0, topSpan - botLag);
+
+        if (topSpan <= 2 && midSpan <= 2 && botSpan <= 2) continue;
+
+        // Precompute fold X coordinates at Top (y=0), Mid (y=ch*0.52), and Bottom (y=ch)
+        const topX = [];
+        const midX = [];
+        const botX = [];
+
+        const waveAmp = (1 - openProgress * 0.6) * (6.5 + nLevel * 10);
+
+        for (let i = 0; i <= pleats; i++) {
+            const frac = i / pleats;
+            // Subtle accordion bunching toward the outer wings as curtain opens
+            const bunchedFrac = Math.pow(frac, 1 + openProgress * 0.35);
+
+            // Live organic cloth breeze harmonics (anchored at top, fuller sway at mid & bottom)
+            const phase = t * 1.85 + i * 0.72 + (isLeft ? 0 : 1.7);
+            const sway2 = Math.cos(t * 1.15 - i * 0.48) * (waveAmp * 0.45);
+            const swayMid = (Math.sin(phase) * waveAmp + sway2) * (0.35 + frac * 0.65);
+            const swayBot = (Math.sin(phase - 0.85) * (waveAmp * 1.65) + sway2 * 1.3) * (0.35 + frac * 0.65);
+
+            topX[i] = anchorX - side * (topSpan * bunchedFrac);
+            midX[i] = anchorX - side * (midSpan * bunchedFrac) + swayMid;
+            botX[i] = anchorX - side * (botSpan * bunchedFrac) + swayBot;
+        }
+
+        // Soft stage floor shadow cast by the inner leading edge of each curtain wing
+        const leadIdx = pleats;
+        curtainCtx.save();
+        curtainCtx.beginPath();
+        curtainCtx.moveTo(topX[leadIdx], 0);
+        curtainCtx.quadraticCurveTo(midX[leadIdx], ch * 0.52, botX[leadIdx], ch);
+        curtainCtx.lineWidth = 26;
+        curtainCtx.strokeStyle = 'rgba(28, 25, 23, 0.14)';
+        curtainCtx.stroke();
+        curtainCtx.restore();
+
+        // Render each individual 3D silk pleat strip
+        for (let i = 0; i < pleats; i++) {
+            const x0Top = topX[i], x1Top = topX[i + 1];
+            const x0Mid = midX[i], x1Mid = midX[i + 1];
+            const x0Bot = botX[i], x1Bot = botX[i + 1];
+
+            curtainCtx.beginPath();
+            curtainCtx.moveTo(x0Top, 0);
+            curtainCtx.quadraticCurveTo(x0Mid, ch * 0.52, x0Bot, ch);
+            curtainCtx.lineTo(x1Bot, ch);
+            curtainCtx.quadraticCurveTo(x1Mid, ch * 0.52, x1Top, 0);
+            curtainCtx.closePath();
+
+            // Calculate dynamic spotlight illumination on this pleat
+            const pleatCenterX = (x0Mid + x1Mid) * 0.5;
+            const d1 = Math.abs(pleatCenterX - spot1X) / (cw * 0.28);
+            const d2 = Math.abs(pleatCenterX - spot2X) / (cw * 0.32);
+            const lightBoost = Math.max(0, 1 - d1 * d1) * 0.55 + Math.max(0, 1 - d2 * d2) * 0.4;
+
+            // Live 3D cylindrical silk shading across the pleat width
+            const grad = curtainCtx.createLinearGradient(x0Mid, 0, x1Mid, 0);
+            // Shift ridge highlight slightly with cloth wave so the silk shimmers alive!
+            const ridgePos = Math.max(0.28, Math.min(0.72, 0.5 + Math.sin(t * 1.9 + i * 0.8) * 0.14));
+
+            const peakR = Math.min(255, Math.round(250 + lightBoost * 5));
+            const peakG = Math.min(253, Math.round(244 + lightBoost * 9));
+            const peakB = Math.min(245, Math.round(226 + lightBoost * 18));
+
+            grad.addColorStop(0, '#C8B084');
+            grad.addColorStop(ridgePos * 0.5, '#E5D5B5');
+            grad.addColorStop(ridgePos, `rgb(${peakR}, ${peakG}, ${peakB})`);
+            grad.addColorStop(ridgePos + (1 - ridgePos) * 0.55, '#DFC9A0');
+            grad.addColorStop(1, '#B89B67');
+
+            curtainCtx.fillStyle = grad;
+            curtainCtx.fill();
+        }
+
+        // Brushed 24K Gold Seam Trim along the curved inner leading edge
+        curtainCtx.beginPath();
+        curtainCtx.moveTo(topX[leadIdx], 0);
+        curtainCtx.quadraticCurveTo(midX[leadIdx], ch * 0.52, botX[leadIdx], ch);
+        curtainCtx.lineWidth = 4.5;
+        curtainCtx.strokeStyle = '#D4AF37';
+        curtainCtx.stroke();
+    }
+
+    // Subtle floating golden dust motes over the live curtain
+    const moteAlpha = (1 - openProgress) * 0.55;
+    if (moteAlpha > 0.02) {
+        for (let i = 0; i < 28; i++) {
+            const p = particles[i];
+            if (!p) continue;
+            curtainCtx.beginPath();
+            curtainCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            curtainCtx.fillStyle = `rgba(${p.hue}, ${p.alpha * moteAlpha})`;
+            curtainCtx.fill();
+        }
+    }
 }
 
 function renderCanvasFX(nLevel, tier, victoryActive, now) {
