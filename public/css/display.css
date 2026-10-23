@@ -542,31 +542,12 @@ body.final-victory-mode #bottom-bar {
         );
 }
 
-/* Bottom Architectural 24K Gold Brocade Hem */
-.curtain-gold-hem {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 30px;
-    background: linear-gradient(
-        180deg,
-        #996515 0%,
-        #D4AF37 22%,
-        #F7E7B4 50%,
-        #B8860B 78%,
-        #784B0E 100%
-    );
-    border-top: 2px solid #FFFBEB;
-    box-shadow: 0 -4px 16px rgba(153, 101, 21, 0.22);
-}
-
 /* Inner Leading Edge Metallic Gold Seam Trim */
 .curtain-edge-trim {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 6px;
+    width: 4px;
     background: linear-gradient(
         180deg,
         #996515 0%,
@@ -585,153 +566,6 @@ body.final-victory-mode #bottom-bar {
 .curtain-right .curtain-edge-trim {
     left: 0;
     box-shadow: 2px 0 10px rgba(153, 101, 21, 0.25);
-}
-
-/* Upper Proscenium Valance / Pelmet */
-.curtain-valance {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 74px;
-    z-index: 3;
-    will-change: transform;
-    transform: translate3d(0, 0, 0);
-    transition: transform 1.45s cubic-bezier(0.64, 0.04, 0.14, 1) 0.22s;
-    box-shadow: 0 12px 32px rgba(28, 25, 23, 0.16);
-}
-
-#stage-curtain.curtain-open .curtain-valance {
-    transform: translate3d(0, -115%, 0);
-}
-
-.valance-cornice {
-    height: 12px;
-    width: 100%;
-    background: linear-gradient(
-        90deg,
-        #784B0E 0%,
-        #D4AF37 20%,
-        #FFFBEB 50%,
-        #D4AF37 80%,
-        #784B0E 100%
-    );
-    border-bottom: 1px solid rgba(120, 75, 14, 0.45);
-}
-
-.valance-drape {
-    height: 52px;
-    width: 100%;
-    background-color: #E8DEC8;
-    background-image:
-        linear-gradient(180deg, rgba(120, 82, 24, 0.25) 0%, rgba(255, 253, 249, 0.35) 55%, rgba(153, 101, 21, 0.28) 100%),
-        repeating-linear-gradient(
-            90deg,
-            rgba(120, 82, 24, 0.24) 0px,
-            rgba(255, 253, 249, 0.75) 36px,
-            rgba(140, 96, 28, 0.26) 72px
-        );
-}
-
-.valance-fringe {
-    height: 10px;
-    width: 100%;
-    background:
-        repeating-linear-gradient(
-            90deg,
-            #996515 0px,
-            #D4AF37 3px,
-            #F7E7B4 5px,
-            #85530E 8px
-        );
-    border-top: 2px solid #FFFBEB;
-    border-bottom: 1px solid #784B0E;
-}
-
-/* Center Sanctuary Crest / Medallion on Closed Curtain */
-.curtain-emblem {
-    position: absolute;
-    inset: 0;
-    z-index: 4;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 24px;
-    will-change: transform, opacity;
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    transition: opacity 0.55s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-#stage-curtain.curtain-open .curtain-emblem {
-    opacity: 0;
-    transform: translate3d(0, -14px, 0) scale(0.92);
-}
-
-.emblem-inner {
-    text-align: center;
-    padding: 44px 64px;
-    border-radius: 20px;
-    background: linear-gradient(180deg, #FFFDF9 0%, #F9F3E6 100%);
-    border: 2px solid rgba(212, 175, 55, 0.65);
-    box-shadow:
-        0 24px 64px rgba(28, 25, 23, 0.16),
-        inset 0 0 0 6px #FFFDF9,
-        inset 0 0 0 7px rgba(153, 101, 21, 0.25);
-    max-width: 90vw;
-}
-
-.emblem-eyebrow {
-    font-size: clamp(10px, 1vw, 13px);
-    font-weight: 800;
-    letter-spacing: 0.34em;
-    padding-left: 0.34em;
-    color: var(--gold-deep);
-    margin-bottom: 14px;
-}
-
-.emblem-title {
-    font-family: 'Cinzel', 'Montserrat', serif;
-    font-size: clamp(26px, 3.8vw, 48px);
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    padding-left: 0.18em;
-    color: var(--ink-primary);
-    margin-bottom: 18px;
-}
-
-.emblem-divider {
-    width: 120px;
-    height: 2px;
-    margin: 0 auto 18px;
-    background: linear-gradient(90deg, transparent, #D4AF37, transparent);
-}
-
-.emblem-sub {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.22em;
-    color: var(--ink-secondary);
-    padding: 6px 16px;
-    border-radius: 999px;
-    background: rgba(212, 175, 55, 0.10);
-    border: 1px solid rgba(153, 101, 21, 0.20);
-}
-
-#curtain-conn-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #DC2626;
-    transition: background 0.3s ease;
-}
-
-#curtain-conn-dot.connected {
-    background: #16A34A;
 }
 
 

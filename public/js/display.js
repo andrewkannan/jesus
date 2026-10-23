@@ -12,8 +12,6 @@ const unlockContainer = document.getElementById('unlock-container');
 const unlockLabel = document.getElementById('unlock-label');
 const unlockFill = document.getElementById('unlock-fill');
 const stageCurtainEl = document.getElementById('stage-curtain');
-const curtainConnDot = document.getElementById('curtain-conn-dot');
-const curtainConnText = document.getElementById('curtain-conn-text');
 const meterTags = [
     document.getElementById('m-tier-1'),
     document.getElementById('m-tier-2'),
@@ -230,15 +228,11 @@ function activateFinalVictory() {
 socket.on('connect', () => {
     statusEl.textContent = 'CONNECTED';
     debugInfoEl.classList.add('connected');
-    if (curtainConnDot) curtainConnDot.classList.add('connected');
-    if (curtainConnText) curtainConnText.textContent = 'STAGE READY · AWAITING REMOTE CURTAIN';
 });
 
 socket.on('disconnect', () => {
     statusEl.textContent = 'DISCONNECTED';
     debugInfoEl.classList.remove('connected');
-    if (curtainConnDot) curtainConnDot.classList.remove('connected');
-    if (curtainConnText) curtainConnText.textContent = 'CONNECTING TO STAGE SERVER...';
     targetLevel = 0;
     isManualOverride = false;
 });
