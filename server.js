@@ -26,9 +26,17 @@ let globalState = {
 
 const REMOTE_PIN = (process.env.REMOTE_PIN || 'JESUS').trim().toUpperCase();
 
-// Middleware to parse JSON bodies
+// Middleware to parse JSON bodies and serve fresh static files without stale browser cache
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
 // Authentication endpoint for the remote
 app.post('/api/auth', (req, res) => {
