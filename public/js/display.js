@@ -67,7 +67,9 @@ let currentTier = 0;
 let isFinalVictory = false;
 let isCurtainOpen = false;
 let curtainOpenProgress = 0; // 0 = closed, 1 = fully open
-let curtainVelocity = 0;
+let curtainAnimFrom = 0;
+let curtainAnimStart = 0;
+const CURTAIN_DURATION_MS = 2400; // Smooth 2.4s stage curtain glide
 let curtainCleared = false;
 let curtainSpillTimer = null;
 let achievementTimer = null;
@@ -195,6 +197,9 @@ function setCurtainState(open, animate = true) {
     const nextOpen = Boolean(open);
     if (nextOpen === isCurtainOpen) return;
     isCurtainOpen = nextOpen;
+    curtainAnimFrom = curtainOpenProgress;
+    curtainAnimStart = Date.now();
+    curtainCleared = false;
 
     if (curtainSpillTimer) {
         clearTimeout(curtainSpillTimer);
@@ -207,7 +212,7 @@ function setCurtainState(open, animate = true) {
         stageCurtainEl.setAttribute('aria-hidden', 'true');
         curtainSpillTimer = setTimeout(() => {
             stageCurtainEl.classList.remove('curtain-opening');
-        }, 1600);
+        }, 2200);
 
         if (animate) {
             spawnShockwave(1.3, 3);
@@ -612,15 +617,17 @@ function renderLiveCurtain(now, nLevel) {
     if (!curtainCtx) return;
 
     const target = isCurtainOpen ? 1 : 0;
-    const diff = target - curtainOpenProgress;
-
-    // Smooth spring-damped cloth motion
-    curtainVelocity = curtainVelocity * 0.84 + diff * 0.014;
-    curtainOpenProgress += curtainVelocity;
-
-    if (Math.abs(diff) < 0.001 && Math.abs(curtainVelocity) < 0.0005) {
-        curtainOpenProgress = target;
-        curtainVelocity = 0;
+    if (curtainOpenProgress !== target) {
+        const elapsed = Math.max(0, now - curtainAnimStart);
+        const u = Math.min(1, elapsed / CURTAIN_DURATION_MS);
+        // Smooth cubic ease-in-out (matches the silky CSS cubic-bezier pace)
+        const ease = u < 0.5
+            ? 4 * u * u * u
+            : 1 - Math.pow(-2 * u + 2, 3) / 2;
+        curtainOpenProgress = curtainAnimFrom + (target - curtainAnimFrom) * ease;
+        if (u >= 1) {
+            curtainOpenProgress = target;
+        }
     }
 
     // Zero CPU/GPU cost once curtain is completely open
@@ -638,12 +645,7 @@ function renderLiveCurtain(now, nLevel) {
     const pleats = 10;
     // Slight overlap at center seam when closed so no gap appears during gentle breeze sway
     const closedWidth = cw * 0.506;
-    // As curtain opens, pull past the screen edges
     const openProgress = Math.max(0, Math.min(1, curtainOpenProgress));
-    // Smooth ease-in-out curve for the top track pull
-    const easedOpen = openProgress < 0.5
-        ? 2 * openProgress * openProgress
-        : 1 - Math.pow(-2 * openProgress + 2, 2) / 2;
 
     // Sweeping warm stage spotlights across the closed/opening curtain
     const spot1X = cw * (0.5 + Math.sin(t * 0.55) * 0.36);
@@ -654,13 +656,11 @@ function renderLiveCurtain(now, nLevel) {
         const isLeft = side === -1;
         const anchorX = isLeft ? -16 : cw + 16;
 
-        // Top track pulls faster than mid/bottom, creating a realistic theater tie-back swag curve
-        const topSpan = closedWidth * (1 - easedOpen * 1.06);
-        const midLag = Math.sin(openProgress * Math.PI) * (cw * 0.075);
-        const botLag = Math.sin(openProgress * Math.PI) * (cw * 0.13);
-
-        const midSpan = Math.max(0, topSpan - midLag);
-        const botSpan = Math.max(0, topSpan - botLag);
+        // Smooth stage curtain sweep with a subtle, natural silk drape curve
+        const topSpan = closedWidth * (1 - openProgress * 1.04);
+        const drapeCurve = Math.sin(openProgress * Math.PI) * (cw * 0.022);
+        const midSpan = Math.max(0, topSpan - drapeCurve * 0.6);
+        const botSpan = Math.max(0, topSpan - drapeCurve);
 
         if (topSpan <= 2 && midSpan <= 2 && botSpan <= 2) continue;
 
@@ -669,18 +669,18 @@ function renderLiveCurtain(now, nLevel) {
         const midX = [];
         const botX = [];
 
-        const waveAmp = (1 - openProgress * 0.6) * (6.5 + nLevel * 10);
+        const waveAmp = (1 - openProgress * 0.5) * (6.0 + nLevel * 9);
 
         for (let i = 0; i <= pleats; i++) {
             const frac = i / pleats;
             // Subtle accordion bunching toward the outer wings as curtain opens
-            const bunchedFrac = Math.pow(frac, 1 + openProgress * 0.35);
+            const bunchedFrac = Math.pow(frac, 1 + openProgress * 0.18);
 
             // Live organic cloth breeze harmonics (anchored at top, fuller sway at mid & bottom)
-            const phase = t * 1.85 + i * 0.72 + (isLeft ? 0 : 1.7);
-            const sway2 = Math.cos(t * 1.15 - i * 0.48) * (waveAmp * 0.45);
+            const phase = t * 1.75 + i * 0.72 + (isLeft ? 0 : 1.7);
+            const sway2 = Math.cos(t * 1.1 - i * 0.48) * (waveAmp * 0.42);
             const swayMid = (Math.sin(phase) * waveAmp + sway2) * (0.35 + frac * 0.65);
-            const swayBot = (Math.sin(phase - 0.85) * (waveAmp * 1.65) + sway2 * 1.3) * (0.35 + frac * 0.65);
+            const swayBot = (Math.sin(phase - 0.8) * (waveAmp * 1.55) + sway2 * 1.25) * (0.35 + frac * 0.65);
 
             topX[i] = anchorX - side * (topSpan * bunchedFrac);
             midX[i] = anchorX - side * (midSpan * bunchedFrac) + swayMid;
